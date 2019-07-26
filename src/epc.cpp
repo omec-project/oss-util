@@ -941,7 +941,7 @@ NodeSelectorResultList &NodeSelector::process()
                   if ( !nsrap->getUsageTypes().empty() )
                   {
                      // at least 1 usage type matched, so consider the protocol a match
-                     nsr->addSupportedProtocol( nsrap );
+                     //nsr->addSupportedProtocol( nsrap );
                   }
                   else
                   {

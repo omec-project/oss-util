@@ -17,8 +17,8 @@
 #include <errno.h>
 
 #include "ssync.h"
-#include "serror.h"
 #include "satomic.h"
+#include "serror.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -199,6 +199,7 @@ bool SSemaphore::increment()
 ////////////////////////////////////////////////////////////////////////////////
 
 SEvent::SEvent( bool state )
+   : m_buf()
 {
    m_pipefd[0] = -1;
    m_pipefd[1] = -1;
