@@ -29,123 +29,132 @@
 
 class CStatValue
 {
-public:
-	CStatValue(const char *name, const char *dir,int id)
-		: m_name(name), m_dir(dir),m_id(id), m_value(0)
-	{
-	}
+	public:
+		CStatValue(const char *name, const char *dir,int id)
+			: m_name(name), m_dir(dir),m_id(id), m_value(0)
+		{
+		}
 
-	const std::string &getName() { return m_name; }
-        const std::string &getDname() { return m_dir; }
-	int getId()			{ return m_id; }
+		const std::string &getName() { return m_name; }
+		const std::string &getDname() { return m_dir; }
+		int getId()			{ return m_id; }
 
-	int64_t setValue(int64_t v)	{ return m_value = v; }
-	int64_t getValue()		{ return m_value; }
-        
-	void setTime(const char *str)	{  m_time = str; }
-	const std::string &getTime()    { return m_time; }
+		int64_t setValue(int64_t v)	{ return m_value = v; }
+		int64_t getValue()		{ return m_value; }
 
-private:
-	CStatValue();
+		void setTime(const char *str)	{  m_time = str; }
+		const std::string &getTime()    { return m_time; }
 
-	std::string m_name;
-        std::string m_dir;
-	std::string m_time;
-	int m_id;
-	int64_t m_value;
+	private:
+		CStatValue();
+
+		std::string m_name;
+		std::string m_dir;
+		std::string m_time;
+		int m_id;
+		int64_t m_value;
 };
 
 class CStatHealth
 {
-   public:
-          CStatHealth(int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts,int64_t id)
-                     :m_resptimeout(resptimeout),m_maxtimeouts(maxtimeouts),m_timeouts(timeouts),m_id(id)
-          {
-          }
+	public:
+		CStatHealth(int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts,int64_t id)
+			:m_resptimeout(resptimeout),m_maxtimeouts(maxtimeouts),m_timeouts(timeouts),m_id(id)
+		{
+		}
 
-          int64_t setRespTimeout(int64_t v)  { return m_resptimeout = v; }
-          int64_t setMaxTimeouts(int64_t v)  { return m_maxtimeouts = v; }
-          int64_t setTimeouts(int64_t v)     { return m_timeouts = v; }
-           
-          int64_t setReqSent(int64_t v)       { return m_req_sent = v; }
-          int64_t setReqReceived(int64_t v)   { return m_req_received = v; } 
-		  int64_t setRespSent(int64_t v)       { return m_resp_sent = v; }
-          int64_t setRespReceived(int64_t v)   { return m_resp_received = v; } 
+		int64_t setRespTimeout(int64_t v)  { return m_resptimeout = v; }
+		int64_t setMaxTimeouts(int64_t v)  { return m_maxtimeouts = v; }
+		int64_t setTimeouts(int64_t v)     { return m_timeouts = v; }
 
-          int64_t getRespTimeout()            { return m_resptimeout; }
-          int64_t getMaxTimeouts()            { return m_maxtimeouts; }
-          int64_t getTimeouts()               { return m_timeouts;    }  
+		int64_t setReqSent(int64_t v)       { return m_req_sent = v; }
+		int64_t setReqReceived(int64_t v)   { return m_req_received = v; }
+		int64_t setRespSent(int64_t v)       { return m_resp_sent = v; }
+		int64_t setRespReceived(int64_t v)   { return m_resp_received = v; }
 
-          int64_t getReqSent()                { return m_req_sent; } 
-          int64_t getReqReceived()            { return m_req_received; }
-		  int64_t getRespSent()                { return m_resp_sent; }
-		  int64_t getRespReceived()            { return m_resp_received; }		
-          int64_t getId()                     { return m_id; }  
-       
-	 void serialize(statsrapidjson::Value &row, statsrapidjson::Value &arrayObjects, statsrapidjson::Document::AllocatorType &allocator);
+		int64_t getRespTimeout()            { return m_resptimeout; }
+		int64_t getMaxTimeouts()            { return m_maxtimeouts; }
+		int64_t getTimeouts()               { return m_timeouts;    }
 
-   private:
-           CStatHealth();
-           
-           int64_t m_resptimeout;
-           int64_t m_maxtimeouts;
-           int64_t m_timeouts;
-           int64_t m_req_sent;
-           int64_t m_req_received;
-           int64_t m_resp_sent;
-           int64_t m_resp_received;
-           int64_t m_id;
+		int64_t getReqSent()                { return m_req_sent; }
+		int64_t getReqReceived()            { return m_req_received; }
+		int64_t getRespSent()                { return m_resp_sent; }
+		int64_t getRespReceived()            { return m_resp_received; }
+		int64_t getId()                     { return m_id; }
+
+		void serialize(statsrapidjson::Value &row, statsrapidjson::Value &arrayObjects, statsrapidjson::Document::AllocatorType &allocator);
+
+	private:
+		CStatHealth();
+
+		int64_t m_resptimeout;
+		int64_t m_maxtimeouts;
+		int64_t m_timeouts;
+		int64_t m_req_sent;
+		int64_t m_req_received;
+		int64_t m_resp_sent;
+		int64_t m_resp_received;
+		int64_t m_id;
 
 };
 
 
 
-class CStatPeer 
+class CStatPeer
 {
-   public:
-          CStatPeer(const char *active,const char *address,int id)
-                  :m_active(active),m_address(address),m_id(id)
-          {
-          }
+	public:
+		CStatPeer(const char *active,const char *address,int id)
+			:m_active(active),m_address(address),m_id(id)
+		{
+		}
 
-          const std::string &getAddress() { return m_address; }
-          const std::string &getActive()  { return m_active; } 
-          
-          void setLastactivity(const char *lastactivity)  { m_lastactivity = lastactivity; } 
-          
-          const std::string &getLastactivity() { return m_lastactivity; }  
-     
-          int getId() {return m_id;} 
- 
-	int addMvalue(const char *name,const char *dir)
-	{
-		CStatValue *v = new CStatValue(name,dir, m_values.size());
-		m_values.push_back(v);
-		return v->getId();
-	}
+		const std::string &getAddress() { return m_address; }
+		const std::string &getActive()  { return m_active; }
 
-        int addHvalue(int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts)
-        {
-            CStatHealth *v= new CStatHealth(resptimeout,maxtimeouts,timeouts,m_health.size());
-            m_health.push_back(v);
-            return v->getId();
-        }
+		void setLastactivity(const char *lastactivity)  { m_lastactivity = lastactivity; }
+		void setActive(const char *active)   {m_active = active; }
 
-       
-         std::vector<CStatValue*> &getValues() { return m_values; }
-	 void serialize(statsrapidjson::Value &row, statsrapidjson::Value &arrayObjects, statsrapidjson::Document::AllocatorType &allocator);
+		void setStatus(int st)
+		{
+			if (st == 1)
+				setActive("true");
+			else
+				setActive("false");
+		}
 
-         std::vector<CStatHealth*> &getHValues() {return m_health;}
+		const std::string &getLastactivity() { return m_lastactivity; }
 
-   private:
-        CStatPeer();
+		int getId() {return m_id;}
 
-       std::string m_active;
-       std::string m_address;
-       std::string m_lastactivity;
-       std::vector<CStatHealth*> m_health;
-       int m_id;
-       std::vector<CStatValue*> m_values;
+		int addMvalue(const char *name,const char *dir)
+		{
+			CStatValue *v = new CStatValue(name,dir, m_values.size());
+			m_values.push_back(v);
+			return v->getId();
+		}
+
+		int addHvalue(int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts)
+		{
+			CStatHealth *v= new CStatHealth(resptimeout,maxtimeouts,timeouts,m_health.size());
+			m_health.push_back(v);
+			return v->getId();
+		}
+
+
+		std::vector<CStatValue*> &getValues() { return m_values; }
+		void serialize(statsrapidjson::Value &row, statsrapidjson::Value &arrayObjects, statsrapidjson::Document::AllocatorType &allocator);
+
+		std::vector<CStatHealth*> &getHValues() {return m_health;}
+
+	private:
+		CStatPeer();
+
+		std::string m_active;
+		std::string m_address;
+		std::string m_lastactivity;
+		std::vector<CStatHealth*> m_health;
+		int m_id;
+		std::vector<CStatValue*> m_values;
 };
 
 class CStatCategory
@@ -167,7 +176,7 @@ public:
 	}
 
 	const std::string &getName()	{ return m_name; }
-        const std::string &getPName()   { return m_pname; }
+	const std::string &getPName()   { return m_pname; }
 	int getId()			{ return m_id; }
 
 
@@ -177,34 +186,34 @@ public:
 		m_peers.push_back(v);
 		return v->getId();
 	}
-        
-        int addValue(int peerid,const char *name,const char *dir)
-        {
-             return m_peers[peerid]->addMvalue(name,dir);
-             
-        }
-        
-        int addHealth(int peerid,int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts)
-        {
-              return m_peers[peerid]->addHvalue(resptimeout,maxtimeouts,timeouts);
-        }        
 
-          void addLastactivity(int peerid,const char *lastactivity)
-          {
-                  m_peers[peerid]->setLastactivity(lastactivity); 
-          }          
+	int addValue(int peerid,const char *name,const char *dir)
+	{
+		return m_peers[peerid]->addMvalue(name,dir);
+
+	}
+
+	int addHealth(int peerid,int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts)
+	{
+		return m_peers[peerid]->addHvalue(resptimeout,maxtimeouts,timeouts);
+	}
+
+	void addLastactivity(int peerid,const char *lastactivity)
+	{
+		m_peers[peerid]->setLastactivity(lastactivity);
+	}
 
 
-        std::vector<CStatPeer*> &getValues() { return m_peers; }
+	std::vector<CStatPeer*> &getValues() { return m_peers; }
 
 	void serialize(statsrapidjson::Value &row,statsrapidjson::Value &arrayObjects, statsrapidjson::Document::AllocatorType &allocator);
 	void serialize(std::stringstream &ss);
 
 private:
 	std::string m_name;
-        std::string m_pname;
+	std::string m_pname;
 	int m_id;
-        std::vector<CStatPeer*> m_peers;
+	std::vector<CStatPeer*> m_peers;
 };
 
 
@@ -213,11 +222,11 @@ const uint16_t CSTAT_GENERATE_CSV = ETM_USER + 2;
 
 class CStatsUpdateInterval : public SEventThreadMessage
 {
-public:
-	CStatsUpdateInterval(long interval)
-		: SEventThreadMessage(CSTAT_UPDATE_INTERVAL), m_interval(interval)
-	{
-	}
+	public:
+		CStatsUpdateInterval(long interval)
+			: SEventThreadMessage(CSTAT_UPDATE_INTERVAL), m_interval(interval)
+		{
+		}
 
 	long getInterval() { return m_interval; }
 
@@ -263,31 +272,31 @@ public:
 
 	void setStatGetter(CStatsGetter getstat)	{ m_getstat = getstat; }
 	void setStatGetter_time(CStatsGetter_time  getstat)	{ m_getstat_time = getstat; }
-
-
+	void setStatGetter_common(CStatsGetter_common getstat)        { common_getstat = getstat; }
+	void setStatGetter_health(CStatsGetter_health getstat)        { health_getstat = getstat; }
 
 	const std::string &getName()			{ return m_name; }
 	void setName(const char *str)			{  m_name = str; }
 
 	int getMaxValues()				{ return m_maxvalues; }
 	int setMaxValues(int v)				{ return m_maxvalues = v; }
-        
-        int setUpsecs(long v)                          { return m_upsecs = v; }         
-        long getUpsecs()                               { return m_upsecs; }
 
-        int setResetsecs(long v)                       { return m_resetsecs = v; }
-        long getResetsecs()                            { return m_resetsecs; }
+	int setUpsecs(long v)                          { return m_upsecs = v; }
+	long getUpsecs()                               { return m_upsecs; }
 
-        int setActive(long v)                           { return m_active = v; }
-        long getActive()                                { return m_active;} 
- 
+	int setResetsecs(long v)                       { return m_resetsecs = v; }
+	long getResetsecs()                            { return m_resetsecs; }
+
+	int setActive(long v)                           { return m_active = v; }
+	long getActive()                                { return m_active;}
+
 	void getCurrentStats();
 
 	int addCategory(const char *name,const char *pname);
 	int addValue(int categoryid,int peerid, const char *name,const char *dir);
-        int addPeer(int categoryid,const char *status,const char *ipaddress);
-        int addHealth(int categoryid,int peerid,int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts);
-        void addLastactivity(int categoryid,int peerid,const char *lastactivity);
+	int addPeer(int categoryid,const char *status,const char *ipaddress);
+	int addHealth(int categoryid,int peerid,int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts);
+	void addLastactivity(int categoryid,int peerid,const char *lastactivity);
 
 
 
@@ -299,13 +308,15 @@ private:
 	static CStats *m_singleton;
 
 	std::string m_name;
-	long m_upsecs;	
+	long m_upsecs;
 	long m_resetsecs;
 	long m_interval;
 	long m_active;
 	SLogger *m_logger;
 	CStatsGetter m_getstat;
-	CStatsGetter_time m_getstat_time;  
+	CStatsGetter_time m_getstat_time;
+	CStatsGetter_common common_getstat;
+	CStatsGetter_health health_getstat;
 	int m_maxvalues;
 	std::vector<CStatCategory*> m_categories;
 	SEventThread::Timer m_timer;
@@ -322,10 +333,12 @@ void csSetName(const char *name)
 }
 
 //void csInit(void *logger, CStatsGetter getter, CStatsGetter_time time_getter, int maxvalues, long interval)
-void csInit(void *logger, CStatsGetter getter, int maxvalues, long interval)
+void csInit(void *logger, CStatsGetter getter, CStatsGetter_common common_getter, CStatsGetter_health health_getter, int maxvalues, long interval)
 {
 	CStats::singleton().setLogger((SLogger*)logger);
 	CStats::singleton().setStatGetter(getter);
+	CStats::singleton().setStatGetter_common(common_getter);
+	CStats::singleton().setStatGetter_health(health_getter);
 	//CStats::singleton().setStatGetter_time(time_getter);   //add
 	CStats::singleton().setMaxValues(maxvalues);
 	CStats::singleton().setInterval(interval);
@@ -343,7 +356,7 @@ void csStop(void)
 }
 
 int csAddUpsecs(long upsecs,long resetsecs)
-{ 
+{
     CStats::singleton().setResetsecs(resetsecs);
    return  CStats::singleton().setUpsecs(upsecs);
 }
@@ -360,7 +373,7 @@ int csAddMessage(int categoryid,int peerid, const char *name,const char *dir)
 
 int csAddPeer(int categoryid, const char *status,const char *ipaddress)
 {
-        return CStats::singleton().addPeer(categoryid,status,ipaddress);              
+        return CStats::singleton().addPeer(categoryid,status,ipaddress);
 }
 
 void csAddLastactivity(int categoryid,int peerid, const char *lastactivity)
@@ -468,7 +481,7 @@ void CStats::dispatch(SEventThreadMessage &msg)
 		{
 			getCurrentStats();
 			//serializeCSV();
-	
+
 			std::string json;
 			serializeJSON(json);
 			break;
@@ -494,8 +507,8 @@ void CStats::addLastactivity(int categoryid,int peerid,const char *lastactivity)
 }
 
 int CStats::addHealth(int categoryid,int peerid,int64_t resptimeout,int64_t maxtimeouts,int64_t timeouts)
-{ 
-        return m_categories[categoryid]->addHealth(peerid,resptimeout,maxtimeouts,timeouts);  
+{
+        return m_categories[categoryid]->addHealth(peerid,resptimeout,maxtimeouts,timeouts);
 }
 
 int CStats::addValue(int categoryid,int peerid,const char *name,const char *dir)
@@ -510,7 +523,7 @@ void CStats::updateInterval(long interval)
 {
 	CStatsUpdateInterval *e = new CStatsUpdateInterval(interval);
 	postMessage(e);
-} 
+}
 
 void CStats::getCurrentStats()
 {
@@ -519,33 +532,31 @@ void CStats::getCurrentStats()
 
 	for (auto cit = m_categories.begin(); cit != m_categories.end(); ++cit)    //class CStat
 	{
-          for( auto pit = (*cit)->getValues().begin(); pit != (*cit)->getValues().end(); ++pit)
-          { 
-                    for (auto vit = (*pit)->getValues().begin(); vit != (*pit)->getValues().end(); ++vit)     //class CStatPeer 
-                    {
-			(*vit)->setValue( (*m_getstat)((*cit)->getId(), (*vit)->getId(), (*pit)->getId()) );
-			//(*vit)->setTime( (*m_getstat_time)(0, (*vit)->getId(), 0) );    //get_time
-                    }
-          }
+		for( auto pit = (*cit)->getValues().begin(); pit != (*cit)->getValues().end(); ++pit)
+		{
+			//int id = 1;
+			     //printf("cid:%d , 0 , pit:%d \n\n",(*cit)->getId(),(*pit)->getId());
+			    (*pit)->setStatus( (*health_getstat)((*cit)->getId(),0,(*pit)->getId()));
+			for (auto vit = (*pit)->getValues().begin(); vit != (*pit)->getValues().end(); ++vit)     //class CStatPeer
+			{
+				(*vit)->setValue( (*m_getstat)((*cit)->getId(), (*vit)->getId(), (*pit)->getId()) );
+				//(*vit)->setTime( (*m_getstat_time)(0, (*vit)->getId(), 0) );    //get_time
+			}
+
+			for (auto vit = (*pit)->getHValues().begin(); vit != (*pit)->getHValues().end(); ++vit)     //class CStatPeer
+			{
+				(*vit)->setTimeouts( (*health_getstat)((*cit)->getId(), 1, (*pit)->getId()) );
+				(*vit)->setReqSent( (*health_getstat)((*cit)->getId(), 2, (*pit)->getId()) );
+				(*vit)->setReqReceived( (*health_getstat)((*cit)->getId(), 3, (*pit)->getId()));
+				(*vit)->setRespSent( (*health_getstat)((*cit)->getId(), 4, (*pit)->getId()) );
+				(*vit)->setRespReceived( (*health_getstat)((*cit)->getId(), 5, (*pit)->getId()));
+			}
+		}
 	}
 
-	for (auto cit = m_categories.begin(); cit != m_categories.end(); ++cit)
-	{
-          for( auto pit = (*cit)->getValues().begin(); pit != (*cit)->getValues().end(); ++pit)
-          { 
-                    for (auto vit = (*pit)->getHValues().begin(); vit != (*pit)->getHValues().end(); ++vit)     //class CStatPeer 
-                    {
-			(*vit)->setTimeouts( (*m_getstat)((*cit)->getId(), -3, (*pit)->getId()) );
-			(*vit)->setReqSent( (*m_getstat)((*cit)->getId(), -4, (*pit)->getId()) );
-			(*vit)->setReqReceived( (*m_getstat)((*cit)->getId(), -5, (*pit)->getId()));
-			(*vit)->setRespSent( (*m_getstat)((*cit)->getId(), -6, (*pit)->getId()) );
-			(*vit)->setRespReceived( (*m_getstat)((*cit)->getId(), -7, (*pit)->getId()));
-                    }
-          }
-	}
-	CStats::singleton().setActive( (*m_getstat)(-1, 0, 0));
-	CStats::singleton().setUpsecs((*m_getstat)(-1, 1, 0));
-	CStats::singleton().setResetsecs((*m_getstat)(-1,2,0));   //resetsec
+	CStats::singleton().setActive( (*common_getstat)(0));
+	CStats::singleton().setUpsecs((*common_getstat)(1));
+	//CStats::singleton().setResetsecs((*m_getstat)(-1,2,0));   //resetsec
 	int len = 965;
 	get_current_file_size(len);
 }
@@ -554,7 +565,7 @@ void CStats::serializeJSON(std::string &json)
 {
 	STime now = STime::Now();
 	std::string nowstr;
-        //std::string nodename = "sgwc-001";
+	//std::string nodename = "sgwc-001";
 	//std::string nodename = CStats::singleton().getName();
 	statsrapidjson::Document document;
 	document.SetObject();
@@ -586,10 +597,10 @@ void CStats::serializeJSON(std::string &json)
         //arrayValues.PushBack(values8, allocator);
 	document.AddMember("interfaces:", arrayValues, allocator);
 	//document.AddMember("interfaces:", arrayValues, allocator);
-                  
+
 	row5.AddMember(statsrapidjson::StringRef("active"),CStats::singleton().getActive(), allocator);
 	document.AddMember("Sessions:",row5, allocator);
-      
+
 
 
 	statsrapidjson::StringBuffer strbuf;
@@ -647,16 +658,16 @@ void CStatCategory::serialize(statsrapidjson::Value &row,statsrapidjson::Value &
 			//values8.PushBack(row1,allocator);
 			//row.AddMember(statsrapidjson::StringRef("peer"), values8, allocator);
                  }
-		 
-	//arrayValues.PushBack(values8, allocator);	 
+
+	//arrayValues.PushBack(values8, allocator);
 	//row.AddMember(statsrapidjson::StringRef("peer"), row1, allocator);
-	arrayValues.PushBack(row, allocator);	 
+	arrayValues.PushBack(row, allocator);
 
 }
 
 void CStatPeer::serialize(statsrapidjson::Value &row,statsrapidjson::Value &arrayValues, statsrapidjson::Document::AllocatorType &allocator)
 {
-	
+
         statsrapidjson::Value value(statsrapidjson::kObjectType);
         statsrapidjson::Value value1(statsrapidjson::kObjectType);
         statsrapidjson::Value value2(statsrapidjson::kObjectType);
@@ -667,7 +678,7 @@ void CStatPeer::serialize(statsrapidjson::Value &row,statsrapidjson::Value &arra
         statsrapidjson::Value values1(statsrapidjson::kArrayType);
         statsrapidjson::Value values2(statsrapidjson::kArrayType);
         statsrapidjson::Value values3(statsrapidjson::kArrayType);
-        
+
 	statsrapidjson::Value row1(statsrapidjson::kObjectType);
 	statsrapidjson::Value row2(statsrapidjson::kObjectType);
 	statsrapidjson::Value row3(statsrapidjson::kObjectType);
@@ -677,19 +688,19 @@ void CStatPeer::serialize(statsrapidjson::Value &row,statsrapidjson::Value &arra
 	row.AddMember(statsrapidjson::StringRef("Address"), value4, allocator); //1
 
 	row.AddMember(statsrapidjson::StringRef("active"), statsrapidjson::StringRef(getActive().c_str()), allocator); //2,3
-	row.AddMember(statsrapidjson::StringRef("lastactivity"), statsrapidjson::StringRef(getLastactivity().c_str()), allocator); 
-           
+	row.AddMember(statsrapidjson::StringRef("lastactivity"), statsrapidjson::StringRef(getLastactivity().c_str()), allocator);
+
         auto pit = getHValues().begin();
-        
+
 		   row1.AddMember(statsrapidjson::StringRef("responsetimeout"),(*pit)->getRespTimeout(), allocator);
 		   row1.AddMember(statsrapidjson::StringRef("maxtimeouts"),(*pit)->getMaxTimeouts(), allocator);
 		   row1.AddMember(statsrapidjson::StringRef("timeouts"), (*pit)->getTimeouts(), allocator);
-          
+
 		   value2.AddMember(statsrapidjson::StringRef("sent"),(*pit)->getReqSent(), allocator);
 		   value2.AddMember(statsrapidjson::StringRef("received"),(*pit)->getReqReceived(), allocator);
                    values2.PushBack(value2,allocator);
 	           row1.AddMember(statsrapidjson::StringRef("request"), values2, allocator);
-                     
+
 		   value3.AddMember(statsrapidjson::StringRef("sent"),(*pit)->getRespSent(), allocator);
 		   value3.AddMember(statsrapidjson::StringRef("received"),(*pit)->getRespReceived(), allocator);
                    values3.PushBack(value3,allocator);
@@ -707,12 +718,12 @@ void CStatPeer::serialize(statsrapidjson::Value &row,statsrapidjson::Value &arra
 		   value.AddMember(statsrapidjson::StringRef("last"),(*pit)->getValue(), allocator);
 		   //value.AddMember(statsrapidjson::StringRef("last"),statsrapidjson::StringRef((*pit)->getTime().c_str()), allocator);
                    values.PushBack(value,allocator);
-        } 
+        }
 
 	row.AddMember(statsrapidjson::StringRef("Messages"), values, allocator);//5
     //row.AddMember(statsrapidjson::StringRef("Peer"),row3,allocator);
-	//arrayValues.PushBack(row, allocator);	 
-        
+	//arrayValues.PushBack(row, allocator);
+
 }
 
 void CStatCategory::serialize(std::stringstream &ss)
@@ -780,7 +791,7 @@ void  construct_json(const char *param,const char *value,const char *effect, cha
 	statsrapidjson::Writer<statsrapidjson::StringBuffer> writer(strbuf);
 	document.Accept(writer);
 
-	ret=strbuf.GetString(); 
+	ret=strbuf.GetString();
 	strcpy(buf,ret);
 
 }
@@ -802,7 +813,7 @@ get_current_file_size(size_t len)
      static int flag=0;
      static clock_t reset_time;
      clock_t cp_stats_reset_time;
-		
+
      //reset_time = clock()-cp_stats.execution_time;
      if (flag==0)
      reset_time = cp_stats_execution_time ;

@@ -19,103 +19,6 @@
 #include "epc.h"
 #include "cdnshelper.h"
 
-const CachedDNS::namedserverid_t NS_OPS = 1;
-const CachedDNS::namedserverid_t NS_APP = 2;
-
-int rqst = 0;
-int resp = 0;
-SEvent event;
-
-const ns_type RQST_TYPE = ns_t_naptr;
-const char *RQST_DOMAIN = "imsTV2.apn.epc.mnc990.mcc311.3gppnetwork.org";
-
-#define DNS_QUERY_SYNC(__nsid__,__cachehit__,__ignorecache__)              \
-{                                                                          \
-   CachedDNS::QueryPtr q = CachedDNS::Cache::getInstance(__nsid__)           \
-      .query(RQST_TYPE,RQST_DOMAIN,__cachehit__,__ignorecache__);          \
-   std::cout <<                                                            \
-      (__nsid__==NS_OPS?"NS_OPS":__nsid__==NS_APP?"NS_APP":"UNKNOWN") <<   \
-      " " <<                                                               \
-      (q->getError() ? "FAILED":"SUCCEEDED") <<                            \
-      " cachehit=" << (cachehit?"true":"false") <<                         \
-      " ignorecache=" << (__ignorecache__?"true":"false") <<               \
-      std::endl;                                                           \
-   /* q->dump(); */                                                        \
-}
-
-#define DNS_QUERY_ASYNC(__nsid__,__cb__,__ignorecache__,__seq__)           \
-{                                                                          \
-   char *data = new char[128];                                             \
-   sprintf(data, "%s %d",                                                  \
-         __nsid__ == NS_OPS ? "NS_OPS" :                                   \
-         __nsid__ == NS_APP ? "NS_APP" : "UNKNOWN", __seq__);              \
-   CachedDNS::Cache::getInstance(__nsid__)                                 \
-         .query(RQST_TYPE,RQST_DOMAIN,__cb__,data,__ignorecache__);        \
-}
-
-void dnscb(CachedDNS::QueryPtr q, bool cacheHit, const void *data)
-{
-   char *msg = (char*)data;
-   resp++;
-   std::cout
-      << msg
-      << (q->getError() ? " FAILED":" SUCCEEDED")
-      << " cachehit="
-      << (cacheHit?"true":"false")
-      << " using callback"
-      << std::endl;
-   if (rqst == resp)
-      event.set();
-
-   delete [] msg;
-}
-
-class RWLockThread : public SThread
-{
-public:
-   RWLockThread()
-      : SThread( false )
-   {
-   }
-
-   virtual unsigned long threadProc(void *arg)
-   {
-      std::string str;
-      SRwLock *rwlock = (SRwLock*)arg;
-      SRdLock rdlck1( *rwlock, false );
-
-      SThread::sleep(1000);
-
-      rdlck1.acquire( false );
-      STime::Now().Format( str, "%Y-%m-%d %H:%M:%S.%0", true );
-      std::cout << str << " RWLockThread::rdlck1 isLocked=" << (rdlck1.isLocked()?"true":"false") << std::endl;
-
-      SRdLock rdlck2( *rwlock );
-      STime::Now().Format( str, "%Y-%m-%d %H:%M:%S.%0", true );
-      std::cout << str << " RWLockThread::rdlck2 isLocked=" << (rdlck2.isLocked()?"true":"false") << std::endl;
-
-      return 0;
-   }
-};
-
-void rwlock()
-{
-   std::string str;
-   RWLockThread t;
-   SRwLock rwlock;
-
-   t.init( &rwlock );
-
-   {
-      SWrLock wrlck1( rwlock );
-      STime::Now().Format( str, "%Y-%m-%d %H:%M:%S.%0", true );
-      std::cout << str << " rwlock() wrlck1 isLocked=" << (wrlck1.isLocked()?"true":"false") << std::endl;
-      SThread::sleep(3000);
-   }
-
-   t.join();
-}
-
 void set_dnscache_refresh_params(unsigned int concurrent, int percent,
 		long interval)
 {
@@ -124,10 +27,35 @@ void set_dnscache_refresh_params(unsigned int concurrent, int percent,
 	CachedDNS::Cache::setRefreshInterval(interval);
 }
 
-void set_named_server(const char *address, int udp_port, int tcp_port)
+void set_nameserver_config(const char *address, int udp_port, int tcp_port,
+		nameserver_type_id ns_type)
 {
-	CachedDNS::Cache::getInstance(NS_OPS).addNamedServer(address, udp_port, tcp_port);
-	CachedDNS::Cache::getInstance(NS_OPS).applyNamedServers();
+	CachedDNS::Cache::getInstance(ns_type).addNamedServer(address, udp_port, tcp_port);
+}
+
+void apply_nameserver_config(nameserver_type_id ns_type)
+{
+	CachedDNS::Cache::getInstance(ns_type).applyNamedServers();
+}
+
+void init_save_dns_queries(nameserver_type_id ns_type,
+		const char *qfn, int qsf)
+{
+	CachedDNS::Cache::getInstance(ns_type).initSaveQueries(qfn, qsf * 1000);
+}
+
+int load_dns_queries(nameserver_type_id ns_type, const char *qfn)
+{
+	try
+	{
+	  CachedDNS::Cache::getInstance(ns_type).loadQueries(qfn);
+	}
+	catch(const std::exception& e)
+	{
+	  return 1;
+	}
+
+	return 0;
 }
 
 void *init_pgwupf_node_selector(const char *apnoi, const char *mnc, const char *mcc)
@@ -135,18 +63,18 @@ void *init_pgwupf_node_selector(const char *apnoi, const char *mnc, const char *
 	EPC::PGWUPFNodeSelector *sel =
 			new EPC::PGWUPFNodeSelector(apnoi, mnc, mcc);
 
-	sel->setNamedServerID(NS_APP);
+	sel->setNamedServerID(NS_OPS);
 
 	return sel;
 }
 
-void *init_sgwupf_node_selector(const unsigned char lb, const unsigned char hb,
+void *init_sgwupf_node_selector(char *lb, char *hb,
 		const char *mnc, const char *mcc)
 {
 	EPC::SGWUPFNodeSelector *sel =
 				new EPC::SGWUPFNodeSelector(lb, hb, mnc, mcc);
 
-	sel->setNamedServerID(NS_APP);
+	sel->setNamedServerID(NS_OPS);
 
 	return sel;
 }
@@ -222,7 +150,6 @@ void process_dnsreq(void *node_obj, dns_query_result_t *result,
 	sel->process();
 	//sel->dump();
 	sel->get_result(result, res_count);
-	//rwlock();
 }
 
 int get_colocated_candlist(void *node_obj1, void *node_obj2,

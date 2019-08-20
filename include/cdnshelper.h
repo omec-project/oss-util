@@ -41,15 +41,28 @@ enum upf_app_proto_t
 	UPF_X_SXC,
 };
 
+typedef enum nameserver_type_id {
+	NS_OPS = 1,
+	NS_APP = 2
+} nameserver_type_id;
+
 void set_dnscache_refresh_params(unsigned int concurrent, int percent,
 		long interval);
 
-void set_named_server(const char *address, int udp_port, int tcp_port);
+void set_nameserver_config(const char *address, int udp_port, int tcp_port,
+		nameserver_type_id ns_type);
+
+void apply_nameserver_config(nameserver_type_id ns_type);
+
+void init_save_dns_queries(nameserver_type_id ns_type,
+		const char *qfn, int qsf);
+
+int load_dns_queries(nameserver_type_id ns_type, const char *qfn);
 
 void *init_pgwupf_node_selector(const char *apnoi, const char *mnc,
 		const char *mcc);
 
-void *init_sgwupf_node_selector(const unsigned char lb, const unsigned char hb,
+void *init_sgwupf_node_selector(char *lb, char *hb,
 		const char *mnc, const char *mcc);
 
 void *init_enbupf_node_selector(const char *enb, const char *mnc,

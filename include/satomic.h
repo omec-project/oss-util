@@ -17,8 +17,6 @@
 #ifndef __SATOMIC_H
 #define __SATOMIC_H
 
-#include <ext/atomicity.h>
-
 #define atomic_fetch(a) __sync_add_and_fetch(&a,0)
 
 #define atomic_dec_fetch(a) __sync_sub_and_fetch(&a,1)

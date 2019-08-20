@@ -7,12 +7,12 @@ extern "C" {
 
 typedef int64_t (*CStatsGetter)(int categoryid, int valueid, int peerid);
 typedef const char * (*CStatsGetter_time)(int categoryid, int valueid, int peerid);
-
-
+typedef int64_t(*CStatsGetter_common)(int valueid);
+typedef int64_t(*CStatsGetter_health)(int categoryid, int valueid, int peerid);
 
 void csSetName(const char *name);
 //void csInit(void *logger, CStatsGetter getter, CStatsGetter_time time_getter, int maxvalues, long interval);
-void csInit(void *logger, CStatsGetter getter, int maxvalues, long interval);
+void csInit(void *logger, CStatsGetter getter, CStatsGetter_common common_getter,  CStatsGetter_health health_getter, int maxvalues, long interval);
 void csStart(void);
 void csStop(void);
 

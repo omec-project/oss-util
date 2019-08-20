@@ -20,8 +20,7 @@
 #include <arpa/inet.h>
 
 #include "cdnsparser.h"
-
-#include "../include/serror.h"
+#include "serror.h"
 
 using namespace CachedDNS;
 
@@ -54,6 +53,9 @@ void Parser::parse()
 
 void Parser::parseHeader()
 {
+   if ( !m_data.isValid() )
+      SError::throwRuntimeException( "Parser::parseHeader() - data is invalid" );
+
    m_qdcount = GET_INT16( m_data.getPointer(), HDR_QDCOUNT_OFS );
    m_ancount = GET_INT16( m_data.getPointer(), HDR_ANCOUNT_OFS );
    m_nscount = GET_INT16( m_data.getPointer(), HDR_NSCOUNT_OFS );

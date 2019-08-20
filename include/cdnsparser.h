@@ -59,6 +59,8 @@ namespace CachedDNS
       int setOffset( int ofs ) { return m_ofs = ofs; }
       int calculateOffset( unsigned char *ptr ) { return (int)(ptr - m_data); }
 
+      bool isValid() { return m_data && m_len > 0; }
+
    private:
   
       unsigned char * m_data;

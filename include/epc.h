@@ -18,7 +18,6 @@
 #define __EPC_H
 
 #include <stdio.h>
-#include <string.h>
 
 #include <algorithm>
 #include <string>
@@ -75,8 +74,8 @@
 
 #define APPEND_MNC(a) append("mnc").append(a).append(".")
 #define APPEND_MCC(a) append("mcc").append(a).append(".")
-//#define APPEND_3GPPNETWORK append("3gppnetwork.org")
-#define APPEND_3GPPNETWORK append("test3gpp.net")
+#define APPEND_3GPPNETWORK append("3gppnetwork.org")
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -774,7 +773,9 @@ namespace EPC
    class NodeSelector
    {
    public:
-	  virtual ~NodeSelector();
+
+      virtual ~NodeSelector();
+
       CachedDNS::namedserverid_t getNamedServerID() { return m_nsid; }
       CachedDNS::namedserverid_t setNamedServerID(CachedDNS::namedserverid_t nsid) { return m_nsid = nsid; }
 
@@ -951,7 +952,7 @@ namespace EPC
             (*it)->get_result_fqdn( &result[i++] );
          }
 
-         return (i ? i-1 : 0);
+        return i;
       }
 
    private:

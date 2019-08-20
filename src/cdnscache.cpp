@@ -14,22 +14,33 @@
 * limitations under the License.
 */
 
-#include "../include/cdnscache.h"
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <memory.h>
 #include <poll.h>
 
+#include <fstream>
 #include <iostream>
 #include <list>
 
+#include "serror.h"
+#include "sthread.h"
 #include "ssync.h"
-#include "../include/serror.h"
-#include "../include/sthread.h"
+#include "cdnscache.h"
 #include "cdnsparser.h"
 
 using namespace CachedDNS;
+
+#define RAPIDJSON_NAMESPACE dnsrapidjson
+#include "rapidjson/rapidjson.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/filereadstream.h"
+#include "rapidjson/filewritestream.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
+
+using namespace RAPIDJSON_NAMESPACE;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -139,6 +150,7 @@ namespace CachedDNS
             {
                if ( fds[i].revents != 0 )
                {
+                  SMutexLock l( m_qp.getChannelMutex() );
                   ares_process_fd( m_qp.getChannel(),
                      fds[i].revents & (POLLIN | POLLRDNORM) ? fds[i].fd : ARES_SOCKET_BAD,
                      fds[i].revents & (POLLOUT | POLLWRNORM) ? fds[i].fd : ARES_SOCKET_BAD);
@@ -148,6 +160,7 @@ namespace CachedDNS
          else
          {
             // timeout
+            SMutexLock l( m_qp.getChannelMutex() );
             ares_process_fd( m_qp.getChannel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD );
          }
       }
@@ -303,10 +316,7 @@ namespace CachedDNS
       }
       // throw exception if needed
       if ( status != ARES_SUCCESS )
-      {
-         std::string msg( string_format("QueryProcessor::updateNamedServers() - ares_set_servers_ports() failed status = %d", status) );
-         SError::throwRuntimeException( msg );
-      }
+         SError::throwRuntimeException( "QueryProcessor::updateNamedServers() - ares_set_servers_ports() failed status = %d", status );
    }
 
    void QueryProcessor::beginQuery( QueryPtr &q )
@@ -319,13 +329,17 @@ namespace CachedDNS
 
       if ( q->getCallback() || q->getCompletionEvent() )
       {
+         SMutexLock l( getChannelMutex() );
          ares_query( m_channel, q->getDomain().c_str(), ns_c_in, q->getType(), QueryProcessorThread::ares_callback, qq );
       }
       else
       {
          SEvent event;
          q->setCompletionEvent( &event );
-         ares_query( m_channel, q->getDomain().c_str(), ns_c_in, q->getType(), QueryProcessorThread::ares_callback, qq );
+         {
+            SMutexLock l( getChannelMutex() );
+            ares_query( m_channel, q->getDomain().c_str(), ns_c_in, q->getType(), QueryProcessorThread::ares_callback, qq );
+         }
          event.wait();
          q->setCompletionEvent( NULL );
       }
@@ -360,6 +374,7 @@ namespace CachedDNS
 
       m_ref++;
       m_nsid = NS_DEFAULT;
+      m_newquerycnt = 0;
 
       // start the refresh thread
       m_refresher.init(NULL);
@@ -473,6 +488,26 @@ namespace CachedDNS
       }
    }
 
+   void Cache::loadQueries(const char *qfn)
+   {
+      m_refresher.loadQueries( qfn );
+   }
+
+   void Cache::initSaveQueries(const char *qfn, long qsf)
+   {
+      m_refresher.initSaveQueries( qfn, qsf );
+   }
+
+   void Cache::saveQueries()
+   {
+      m_refresher.saveQueries();
+   }
+
+   void Cache::forceRefresh()
+   {
+      m_refresher.forceRefresh();
+   }
+
    QueryPtr Cache::lookupQuery( ns_type rtype, const std::string &domain )
    {
       QueryCacheKey qck( rtype, domain );
@@ -495,6 +530,8 @@ namespace CachedDNS
       {
          QueryCacheKey qck( q->getType(), q->getDomain() );
          SWrLock l( m_cacherwlock );
+         if ( m_cache.find(qck) == m_cache.end() )
+            atomic_inc_fetch( m_newquerycnt );
          m_cache[qck] = q;
       }
    }
@@ -520,6 +557,14 @@ namespace CachedDNS
       }
    }
 
+   void Cache::getCacheKeys( std::list<QueryCacheKey> &keys )
+   {
+      SRdLock l( m_cacherwlock );
+
+      for (auto val : m_cache )
+         keys.push_back( val.first );
+   }
+
    ////////////////////////////////////////////////////////////////////////////////
    ////////////////////////////////////////////////////////////////////////////////
 
@@ -528,7 +573,9 @@ namespace CachedDNS
         m_sem( maxconcur ),
         m_percent( percent ),
         m_interval( interval ),
-        m_running( false )
+        m_running( false ),
+        m_qfn( "" ),
+        m_qsf( 0 )
    {
    }
 
@@ -547,32 +594,159 @@ namespace CachedDNS
 
    void CacheRefresher::onTimer( SEventThread::Timer &timer)
    {
-      if (m_running)
-         return;
-      m_running = true;
-
-      std::list<QueryCacheKey> keys;
-
-      m_cache.identifyExpired( keys, m_percent );
-
-      for (auto qck : keys)
-      {
-         m_sem.decrement();
-
-         m_cache.query( qck.getType(), qck.getDomain(), callback, this, true );
-      }
-
-      m_running = false;
+      if (timer.getId() == m_timer.getId())
+         _refreshQueries();
+      else if (timer.getId() == m_qst.getId())
+         _saveQueries();
    }
 
    void CacheRefresher::dispatch( SEventThreadMessage &msg )
    {
+      if (msg.getId() == CR_SAVEQUERIES)
+         _saveQueries();
+      else if (msg.getId() == CR_FORCEREFRESH)
+         _forceRefresh();
    }
 
    void CacheRefresher::callback( QueryPtr q, bool cacheHit, const void *data )
    {
       CacheRefresher *ths = (CacheRefresher*)data;
       ths->m_sem.increment();
+   }
+
+   void CacheRefresher::initSaveQueries(const char *qfn, long qsf)
+   {
+      m_qfn = qfn;
+      m_qsf = qsf;
+
+      if (querySaveFrequency() > 0 && !queryFileName().empty())
+      {
+         if ( m_qst.isInitialized() )
+            m_qst.stop();
+
+         m_qst.setInterval( querySaveFrequency() );
+         m_qst.setOneShot( false );
+
+         if ( !m_qst.isInitialized() )
+            initTimer( m_qst );
+
+         m_qst.start();
+      }
+   }
+
+   void CacheRefresher::_refreshQueries()
+   {
+      if (m_running)
+         return;
+
+      std::list<QueryCacheKey> keys;
+
+      m_cache.identifyExpired( keys, m_percent );
+
+
+      _submitQueries( keys );
+   }
+
+   void CacheRefresher::_forceRefresh()
+   {
+      if (m_running)
+         return;
+
+      std::list<QueryCacheKey> keys;
+
+      m_cache.getCacheKeys( keys );
+
+      _submitQueries( keys );
+   }
+
+   void CacheRefresher::_submitQueries( std::list<QueryCacheKey> &keys )
+   {
+      m_running = true;
+
+      for (auto qck : keys)
+      {
+         m_sem.decrement();
+         m_cache.query( qck.getType(), qck.getDomain(), callback, this, true );
+      }
+
+      m_running = false;
+   }
+
+   void CacheRefresher::_saveQueries()
+   {
+      long nqc = m_cache.resetNewQueryCount();
+      if ( nqc == 0 )
+      {
+         //std::cout << "CacheRefresher::_saveQueries() - no changes to save" << std::endl;
+         return;
+      }
+
+      std::list<QueryCacheKey> keys;
+      Document d;
+      Document::AllocatorType &allocator = d.GetAllocator();
+
+      m_cache.getCacheKeys( keys );
+      d.SetArray();
+
+      //std::cout << "CacheRefresher::_saveQueries() - there are " << nqc << " new queries, saving " << keys.size() << " queries" << std::endl;
+
+      for (auto qck : keys)
+      {
+         Value o( kObjectType );
+         o.AddMember( SAVED_QUERY_TYPE, qck.getType(), allocator );
+         o.AddMember( SAVED_QUERY_DOMAIN, Value(qck.getDomain().c_str(), allocator), allocator );
+         d.PushBack( o, allocator );
+      }
+
+      FILE *fp = fopen( queryFileName().c_str(), "w" );
+      if (fp)
+      {
+         char buf[65536];
+         FileWriteStream fws( fp, buf, sizeof(buf) );
+         Writer<FileWriteStream> writer( fws );
+         d.Accept( writer );
+         fclose( fp );
+      }
+   }
+
+   void CacheRefresher::loadQueries(const char *qfn)
+   {
+      Document doc;
+      FILE *fp;
+      char buf[65536];
+
+      fp = fopen(qfn, "r");
+      if ( fp )
+      {
+         FileReadStream frs(fp, buf, sizeof(buf));
+         doc.ParseStream(frs);
+         fclose(fp);
+
+         if ( !doc.IsArray() )
+         {
+            std::string msg( string_format("CacheRefresher::loadQueries() - root is not an array [%s]", qfn) );
+            SError::throwRuntimeException( msg );
+         }
+
+         for (auto &v : doc.GetArray())
+         {
+            if ( !v.HasMember(SAVED_QUERY_TYPE) || !v[SAVED_QUERY_TYPE].IsInt() )
+               SError::throwRuntimeException( "CacheRefresher::loadQueries() - member \"" SAVED_QUERY_TYPE "\" missing or invalid type" );
+            if ( !v.HasMember(SAVED_QUERY_DOMAIN) || !v[SAVED_QUERY_DOMAIN].IsString() )
+               SError::throwRuntimeException( "CacheRefresher::loadQueries() - member \"" SAVED_QUERY_DOMAIN "\" missing or invalid type" );
+
+            ns_type typ = (ns_type)v[SAVED_QUERY_TYPE].GetInt();
+            const char *dmn = v[SAVED_QUERY_DOMAIN].GetString();
+
+            m_sem.decrement();
+            m_cache.query( typ, dmn, callback, this );
+         }
+      }
+      else
+      {
+         std::string msg( string_format("CacheRefresher::loadQueries() - unable to open [%s]", qfn) );
+         SError::throwRuntimeException( msg );
+      }
    }
 } // namespace CachedDNS
 
