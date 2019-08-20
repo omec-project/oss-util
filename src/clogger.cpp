@@ -30,17 +30,17 @@ class Xmessage
 {
 
 public:
-       Xmessage(const char *category,const char *log_level,const char *message) 
+       Xmessage(const char *category,const char *log_level,const char *message)
                :m_category(category),m_log_level(log_level),m_message(message)
        {
-       } 
-      
-  
+       }
+
+
        void setCategory(std::string category)  {  m_category = category;   }
        void setLoglevel(std::string log_level) {  m_log_level = log_level; }
        void setMessage(std::string message)    {  m_message = message;     }
 
-       std::string &getCategory()               {  return m_category;  } 
+       std::string &getCategory()               {  return m_category;  }
        std::string &getLoglevel()               {  return m_log_level; }
        std::string &getMessage()                {  return m_message;   }
 
@@ -64,11 +64,11 @@ class RecentLog
          }
 
          static RecentLog &singleton() { if (!m_singleton) m_singleton = new RecentLog(); return *m_singleton; }
-            
+
          void setName(const char *name)                    { m_name = name; }
          void setAppname(const char *appname)              { m_application = appname; }
          void setMaxsize(int max)                           { m_maxsize = max; }
- 
+
          const std::string &getName()                       {  return m_name;   }
          const std::string &getAppname()                    {  return m_application;   }
                       int getMaxsize()                     { return m_maxsize; }
@@ -83,7 +83,7 @@ class RecentLog
                      m_queue.pop();
                      delete(temp_ptr);
                  }
-         }   
+         }
 
          void add_message(const char *category, char *log_level, const char *message)
          {
@@ -100,71 +100,76 @@ class RecentLog
          void serializeJSON(std::string &json);
 
   private:
-    
-      
+
+
       static RecentLog  *m_singleton;
- 
+
       std::string m_name;
       std::string m_application;
-    
+
       std::queue<Xmessage*> m_queue;
-      int m_maxsize;    
+      int m_maxsize;
 };
 
 
 class Logger
 {
-public:
+	public:
 
-        static void init( const char *app ) { singleton()._init( app ); }
-        static void init( const std::string &app ) { init( app.c_str() ); }
-        static void cleanup() { singleton()._cleanup(); }
-        static void flush() { singleton()._flush(); }
-        static std::string serialize() { return singleton()._serialize(); }
-        static bool updateLogger(const std::string &loggerName, int value) { return singleton()._updateLogger(loggerName, value); }
+		static void init( const char *app ) { singleton()._init( app ); }
+		static void init( const std::string &app ) { init( app.c_str() ); }
+		static void cleanup() { singleton()._cleanup(); }
+		static void flush() { singleton()._flush(); }
+		static std::string serialize() { return singleton()._serialize(); }
+		static bool updateLogger(const std::string &loggerName, int value) { return singleton()._updateLogger(loggerName, value); }
 
-        static SLogger &log(const int l) { return *singleton().m_loggers[l]; }
-	static int logCount() { return singleton().m_loggers.size(); }
+		static SLogger &log(const int l) { return *singleton().m_loggers[l]; }
+		static int logCount() { return singleton().m_loggers.size(); }
 
-        static SLogger &stat() { return *singleton().m_stat; }
-        static SLogger &audit() { return *singleton().m_audit; }
+		static SLogger &stat() { return *singleton().m_stat; }
+		static SLogger &audit() { return *singleton().m_audit; }
 
-        static Logger &singleton() { if (!m_singleton) m_singleton = new Logger(); return *m_singleton; }
+		static Logger &singleton() { if (!m_singleton) m_singleton = new Logger(); return *m_singleton; }
 
-	static int addLogger(const char *logname) { return singleton()._addLogger(logname); }
+		static int addLogger(const char *logname) { return singleton()._addLogger(logname); }
+		static int change_file_size(int size)     { return singleton()._change_file_size(size); }
 
-private:
-        static Logger *m_singleton;
 
-        Logger() {}
-        ~Logger() {}
+	private:
+		static Logger *m_singleton;
 
-        void _init( const char *app );
-        void _cleanup();
-        void _flush();
-        std::string _serialize();
-        bool _updateLogger(const std::string &loggerName, int value);
-	int _addLogger(const char *logname);
+		Logger() {}
+		~Logger() {}
 
-        std::vector<spdlog::sink_ptr> m_sinks;
-        std::vector<spdlog::sink_ptr> m_statsinks;
-        std::vector<spdlog::sink_ptr> m_auditsinks;
+		void _init( const char *app );
+		void _cleanup();
+		void _flush();
+		std::string _serialize();
+		bool _updateLogger(const std::string &loggerName, int value);
+		int _addLogger(const char *logname);
+		int _change_file_size(int size);
 
-        std::string m_pattern;
-	int m_system;
+		std::vector<spdlog::sink_ptr> m_sinks;
+		std::vector<spdlog::sink_ptr> m_statsinks;
+		std::vector<spdlog::sink_ptr> m_auditsinks;
 
-	std::vector<SLogger*> m_loggers;
-        SLogger *m_stat;
-        SLogger *m_audit;
+		std::string m_pattern;
+		int m_system;
+
+		std::vector<SLogger*> m_loggers;
+		SLogger *m_stat;
+		SLogger *m_audit;
 };
+
+
+
 
 static std::string optLogFileName = "logs/cp.log";
 static int optLogMaxSize = 20; /* MB */
 static int optLogNumberFiles = 5;
 
 static std::string optStatFileName = "logs/cp_stat.log";
-//int optStatMaxSize = 1; /* MB */
-static int optStatMaxSize = 20; /* MB */
+int optStatMaxSize = 20; /* MB */
 //static int optStatNumberFiles = 5;
 static int optStatNumberFiles = 0;
 
@@ -303,39 +308,39 @@ void clLog(const int logid, enum CLoggerSeverity sev, const char *fmt, ...)
         va_list args1;
         va_start (args, fmt);
         va_start (args1, fmt);
-     
+
         char buffer[1024] = {0};
 	char buf1[32] = {0};
         std::string category;
-         
-        category=Logger::log(logid).get_name();  
-        
+
+        category=Logger::log(logid).get_name();
+
 	//strcpy(buf2,"Info");
-  
+
         vsnprintf( buffer, sizeof(buffer), fmt, args1 );
-      
+
         //clAddobject(buf1, buf2, buffer);
         //clAddobject(category.c_str(), buf1, buffer);
 
 	switch (sev)
 	{
-		case eCLSeverityTrace:   { Logger::log(logid).trace_args( fmt, args );   
+		case eCLSeverityTrace:   { Logger::log(logid).trace_args( fmt, args );
                                            break; }
-		case eCLSeverityDebug:   { Logger::log(logid).debug_args( fmt, args );   
+		case eCLSeverityDebug:   { Logger::log(logid).debug_args( fmt, args );
                                            break; }
-		case eCLSeverityInfo:    { Logger::log(logid).info_args( fmt, args );    
+		case eCLSeverityInfo:    { Logger::log(logid).info_args( fmt, args );
                                            break; }
-		case eCLSeverityMinor: { Logger::log(logid).startup_args( fmt, args ); 
+		case eCLSeverityMinor: { Logger::log(logid).startup_args( fmt, args );
 	                                   strcpy(buf1,"minor");
                                            break; }
-		case eCLSeverityMajor:    { Logger::log(logid).warn_args( fmt, args );    
+		case eCLSeverityMajor:    { Logger::log(logid).warn_args( fmt, args );
 	                                   strcpy(buf1,"major");
                                            break; }
-		case eCLSeverityCritical:   { Logger::log(logid).error_args( fmt, args );   
+		case eCLSeverityCritical:   { Logger::log(logid).error_args( fmt, args );
 	                                   strcpy(buf1,"critical");
                                            break; }
 	}
-        if(buf1[0]!= 0)         
+        if(buf1[0]!= 0)
         clAddobject(category.c_str(), buf1, buffer);
         va_end (args);
 }
@@ -359,7 +364,7 @@ void clAddRecentLogger(const char *name,const char *app_name, int max)
       RecentLog::singleton().setName(name);
       RecentLog::singleton().setAppname(app_name);
       RecentLog::singleton().setMaxsize(max);
-               
+
 }
 
 void clAddobject(const char *category, char *log_level, const char *message)
@@ -376,16 +381,15 @@ int clRecentLogger(const char *request, char **response)
   RecentLog::singleton().serializeJSON(live);
   *response = strdup(live.c_str());
   return 200;
-  
-}
 
+}
 
 int clRecentLogMaxsize(const char *request, char **response)
 {
-  
+
   std::string res = "{\"Recent_Log_Max_Size\": " + std::to_string(RecentLog::singleton().getMaxsize()) + "}";
   *response = strdup(res.c_str());
-  return 200;  
+  return 200;
 
 }
 
@@ -426,25 +430,28 @@ void Logger::_init( const char *app )
         m_sinks.push_back( std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
 		optLogFileName, optLogMaxSize * 1024 * 1024, optLogNumberFiles ) );
 
-        
+
         m_sinks.push_back( std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
 		optAuditFileName, optLogMaxSize * 1024 * 1024, optAuditNumberFiles ) );
 
 
 
         m_sinks[0]->set_level( spdlog::level::warn );
-        m_sinks[1]->set_level( spdlog::level::info );
+        m_sinks[1]->set_level( spdlog::level::trace );  //set base level for console
         m_sinks[2]->set_level( spdlog::level::trace );
         m_sinks[3]->set_level( spdlog::level::warn );
-       
 
-        m_statsinks.push_back( std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-		optStatFileName, optStatMaxSize * 1024 * 1024, optStatNumberFiles ) );
-        m_statsinks[0]->set_level( spdlog::level::info );
 
-     /*   m_auditsinks.push_back( std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-		optAuditFileName, optAuditMaxSize * 1024 * 1024, optAuditNumberFiles ) );
-        m_statsinks[0]->set_level( spdlog::level::warn ); */
+		/*m_statsinks.push_back( std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+					optStatFileName, optStatMaxSize * 1024 * 1024, optStatNumberFiles ) );
+		m_statsinks[0]->set_level( spdlog::level::info );*/
+
+		m_statsinks.push_back( std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+					optStatFileName, optStatMaxSize * 1024 * 1024, optStatNumberFiles ) );
+		m_statsinks[0]->set_level( spdlog::level::info );
+		/*   m_auditsinks.push_back( std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+			 optAuditFileName, optAuditMaxSize * 1024 * 1024, optAuditNumberFiles ) );
+			 m_statsinks[0]->set_level( spdlog::level::warn ); */
 
         std::stringstream ss;
         ss << "[%Y-%m-%dT%H:%M:%S.%e] [" << app << "] [%n] [%l] %v";
@@ -481,7 +488,7 @@ void Logger::_cleanup()
 
 void Logger::_flush()
 {
-	for (auto it = m_loggers.begin(); it != m_loggers.end(); ++it) 
+	for (auto it = m_loggers.begin(); it != m_loggers.end(); ++it)
 		(*it)->flush();
         if ( m_stat )
                 m_stat->flush();
@@ -492,16 +499,16 @@ void Logger::_flush()
 
 void RecentLog::serializeJSON(std::string &json)
 {
-        
+
         std::queue<Xmessage*> temp_queue = m_queue;
         STime now = STime::Now();
 	std::string nowstr;
 	statsrapidjson::Document document;
 	document.SetObject();
 	statsrapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-       
+
         std::cout<< "temp_queue.size() :" << temp_queue.size();
- 
+
         document.AddMember("name", statsrapidjson::StringRef(getName().c_str()), allocator);
         document.AddMember("application", statsrapidjson::StringRef(getAppname().c_str()), allocator);
 
@@ -510,7 +517,7 @@ void RecentLog::serializeJSON(std::string &json)
         document.AddMember("reporttime", statsrapidjson::StringRef(nowstr.c_str()), allocator);
 
 	statsrapidjson::Value arrayValues(statsrapidjson::kArrayType);
-        
+
         while(!temp_queue.empty())
         {
              (temp_queue.front())->serialize(arrayValues,allocator);
@@ -522,7 +529,7 @@ void RecentLog::serializeJSON(std::string &json)
 	statsrapidjson::Writer<statsrapidjson::StringBuffer> writer(strbuf);
 	document.Accept(writer);
 
-	json = strbuf.GetString(); 
+	json = strbuf.GetString();
 
 }
 
@@ -542,7 +549,7 @@ void Xmessage::serialize(statsrapidjson::Value &arrayValues, statsrapidjson::Doc
 	row.AddMember(statsrapidjson::StringRef("description"), statsrapidjson::StringRef(getMessage().c_str()), allocator);
 
 	arrayValues.PushBack(row, allocator);
-    
+
 }
 
 std::string Logger::_serialize()
