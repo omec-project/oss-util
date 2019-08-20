@@ -22,6 +22,7 @@
 #include <ares.h>
 
 #include "cdnsquery.h"
+#include "satomic.h"
 #include "ssync.h"
 #include "sthread.h"
 
@@ -97,6 +98,8 @@ namespace CachedDNS
       void removeNamedServer(const char *address);
       void applyNamedServers();
 
+      SMutex &getChannelMutex() { return m_mutex; }
+
    protected:
       ares_channel getChannel() { return m_channel; }
 
@@ -111,10 +114,17 @@ namespace CachedDNS
       QueryProcessorThread m_qpt;
       ares_channel m_channel;
       std::map<const char *,NamedServer> m_servers;
+      SMutex m_mutex;
    };
 
    /////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////
+
+   #define SAVED_QUERY_TYPE "type"
+   #define SAVED_QUERY_DOMAIN "domain"
+
+   const uint16_t CR_SAVEQUERIES = ETM_USER + 1;
+   const uint16_t CR_FORCEREFRESH = ETM_USER + 2;
 
    class CacheRefresher : SEventThread
    {
@@ -128,9 +138,22 @@ namespace CachedDNS
       virtual void onTimer( SEventThread::Timer &timer );
       virtual void dispatch( SEventThreadMessage &msg );
 
+      const std::string &queryFileName() { return m_qfn; }
+      long querySaveFrequency() { return m_qsf; }
+
+      void loadQueries(const char *qfn);
+      void loadQueries(const std::string &qfn) { loadQueries(qfn.c_str()); }
+      void initSaveQueries(const char *qfn, long qsf);
+      void saveQueries() { postMessage(CR_SAVEQUERIES); }
+      void forceRefresh() { postMessage(CR_FORCEREFRESH); }
+
    private:
       CacheRefresher();
       static void callback( QueryPtr q, bool cacheHit, const void *data );
+      void _submitQueries( std::list<QueryCacheKey> &keys );
+      void _refreshQueries();
+      void _saveQueries();
+      void _forceRefresh();
 
       Cache &m_cache;
       SSemaphore m_sem;
@@ -138,6 +161,9 @@ namespace CachedDNS
       SEventThread::Timer m_timer;
       long m_interval;
       bool m_running;
+      std::string m_qfn;
+      long m_qsf;
+      SEventThread::Timer m_qst;
    };
 
    /////////////////////////////////////////////////////////////////////////////
@@ -166,8 +192,6 @@ namespace CachedDNS
       static long getRefeshInterval() { return m_interval; }
       static long setRefreshInterval(long interval) { return m_interval = interval; }
 
-
-
       void addNamedServer(const char *address, int udp_port=53, int tcp_port=53);
       void removeNamedServer(const char *address);
       void applyNamedServers();
@@ -175,7 +199,15 @@ namespace CachedDNS
       QueryPtr query( ns_type rtype, const std::string &domain, bool &cacheHit, bool ignorecache=false );
       void query( ns_type rtype, const std::string &domain, CachedDNSQueryCallback cb, const void *data=NULL, bool ignorecache=false );
 
+      void loadQueries(const char *qfn);
+      void loadQueries(const std::string &qfn) { loadQueries(qfn.c_str()); }
+      void initSaveQueries(const char *qfn, long qsf);
+      void saveQueries();
+      void forceRefresh();
+
       namedserverid_t getNamedServerId() { return m_nsid; }
+
+      long resetNewQueryCount() { return atomic_swap(m_newquerycnt, 0); }
 
    protected:
       void updateCache( QueryPtr q );
@@ -183,6 +215,8 @@ namespace CachedDNS
       QueryPtr lookupQuery( QueryCacheKey &qck );
 
       void identifyExpired( std::list<QueryCacheKey> &keys, int percent );
+      void getCacheKeys( std::list<QueryCacheKey> &keys );
+
 
    private:
 
@@ -196,6 +230,7 @@ namespace CachedDNS
       QueryCache m_cache;
       namedserverid_t m_nsid;
       SRwLock m_cacherwlock;
+      long m_newquerycnt;
    };
 }
 

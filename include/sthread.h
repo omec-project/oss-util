@@ -134,6 +134,7 @@ public:
       void setInterval(long interval) { m_interval = interval; }
       void setOneShot(bool oneshot) { m_oneshot = oneshot; }
       long getId() { return m_id; }
+      bool isInitialized() { return m_timer != NULL; }
 
    private:
       static long m_nextid;
