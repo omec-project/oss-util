@@ -31,7 +31,8 @@ class CStatValue
 {
 	public:
 		CStatValue(const char *name, const char *dir,int id)
-			: m_name(name), m_dir(dir),m_id(id), m_value(0)
+			: m_name(name), m_dir(dir),m_id(id), m_value(0),
+				m_time("2019-01-01T01:28:00")
 		{
 		}
 
@@ -122,6 +123,11 @@ class CStatPeer
 				setActive("false");
 		}
 
+		void setIp(const char *addr)
+		{
+			m_address = addr;
+		}
+
 		const std::string &getLastactivity() { return m_lastactivity; }
 
 		int getId() {return m_id;}
@@ -186,6 +192,12 @@ public:
 		m_peers.push_back(v);
 		return v->getId();
 	}
+
+	void updatePeerAddress(int peerid, const char *addr)
+	{
+		m_peers[peerid]->setIp(addr);
+	}
+
 
 	int addValue(int peerid,const char *name,const char *dir)
 	{
@@ -274,7 +286,7 @@ public:
 	void setStatGetter_time(CStatsGetter_time  getstat)	{ m_getstat_time = getstat; }
 	void setStatGetter_common(CStatsGetter_common getstat)        { common_getstat = getstat; }
 	void setStatGetter_health(CStatsGetter_health getstat)        { health_getstat = getstat; }
-
+	void setStatGetter_lastactivity(CStatsGetter_lastactivity getstat)      { lastactivity_getter = getstat; }
 	const std::string &getName()			{ return m_name; }
 	void setName(const char *str)			{  m_name = str; }
 
@@ -291,7 +303,7 @@ public:
 	long getActive()                                { return m_active;}
 
 	void getCurrentStats();
-
+	void updateIp(const char *addr, int interface, int peerid);
 	int addCategory(const char *name,const char *pname);
 	int addValue(int categoryid,int peerid, const char *name,const char *dir);
 	int addPeer(int categoryid,const char *status,const char *ipaddress);
@@ -317,6 +329,7 @@ private:
 	CStatsGetter_time m_getstat_time;
 	CStatsGetter_common common_getstat;
 	CStatsGetter_health health_getstat;
+	CStatsGetter_lastactivity lastactivity_getter;
 	int m_maxvalues;
 	std::vector<CStatCategory*> m_categories;
 	SEventThread::Timer m_timer;
@@ -324,6 +337,7 @@ private:
 
 
 extern struct in_addr dp_comm_ip;
+int len = 0;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -333,17 +347,23 @@ void csSetName(const char *name)
 }
 
 //void csInit(void *logger, CStatsGetter getter, CStatsGetter_time time_getter, int maxvalues, long interval)
-void csInit(void *logger, CStatsGetter getter, CStatsGetter_common common_getter, CStatsGetter_health health_getter, int maxvalues, long interval)
+//void csInit(void *logger, CStatsGetter getter, CStatsGetter_common common_getter, CStatsGetter_health health_getter, int maxvalues, long interval)
+void csInit(void *logger, CStatsGetter getter, CStatsGetter_common common_getter, CStatsGetter_health health_getter, CStatsGetter_time time_getter, int maxvalues, long interval)
 {
 	CStats::singleton().setLogger((SLogger*)logger);
 	CStats::singleton().setStatGetter(getter);
 	CStats::singleton().setStatGetter_common(common_getter);
 	CStats::singleton().setStatGetter_health(health_getter);
-	//CStats::singleton().setStatGetter_time(time_getter);   //add
+	CStats::singleton().setStatGetter_time(time_getter);
 	CStats::singleton().setMaxValues(maxvalues);
 	CStats::singleton().setInterval(interval);
 }
 
+void csInitLastactivity(CStatsGetter_lastactivity lastactivity_getter)
+{
+	CStats::singleton().setStatGetter_lastactivity(lastactivity_getter);
+
+}
 void csStart(void)
 {
 	((SEventThread&)CStats::singleton()).init(NULL);
@@ -429,6 +449,7 @@ int csUpdateInterval(const char *json, char **response)
 int csGetLive(char **response)
 {
 	std::string live;
+	CStats::singleton().getCurrentStats();               //to give latest console o/p
 	CStats::singleton().serializeJSON(live);
 	*response = strdup(live.c_str());
 	return 200;
@@ -537,10 +558,11 @@ void CStats::getCurrentStats()
 			//int id = 1;
 			     //printf("cid:%d , 0 , pit:%d \n\n",(*cit)->getId(),(*pit)->getId());
 			    (*pit)->setStatus( (*health_getstat)((*cit)->getId(),0,(*pit)->getId()));
+				(*pit)->setLastactivity( (lastactivity_getter)((*cit)->getId(),0,(*pit)->getId()));
 			for (auto vit = (*pit)->getValues().begin(); vit != (*pit)->getValues().end(); ++vit)     //class CStatPeer
 			{
 				(*vit)->setValue( (*m_getstat)((*cit)->getId(), (*vit)->getId(), (*pit)->getId()) );
-				//(*vit)->setTime( (*m_getstat_time)(0, (*vit)->getId(), 0) );    //get_time
+				(*vit)->setTime( (*m_getstat_time)((*cit)->getId(), (*vit)->getId(), (*pit)->getId()) );
 			}
 
 			for (auto vit = (*pit)->getHValues().begin(); vit != (*pit)->getHValues().end(); ++vit)     //class CStatPeer
@@ -557,7 +579,7 @@ void CStats::getCurrentStats()
 	CStats::singleton().setActive( (*common_getstat)(0));
 	CStats::singleton().setUpsecs((*common_getstat)(1));
 	//CStats::singleton().setResetsecs((*m_getstat)(-1,2,0));   //resetsec
-	int len = 965;
+	//int len = 965;
 	get_current_file_size(len);
 }
 
@@ -565,43 +587,32 @@ void CStats::serializeJSON(std::string &json)
 {
 	STime now = STime::Now();
 	std::string nowstr;
-	//std::string nodename = "sgwc-001";
-	//std::string nodename = CStats::singleton().getName();
 	statsrapidjson::Document document;
 	document.SetObject();
 	statsrapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 	statsrapidjson::Value row5(statsrapidjson::kObjectType);
 
+	statsrapidjson::Value values8(statsrapidjson::kArrayType);
 
-        statsrapidjson::Value values8(statsrapidjson::kArrayType);
+	document.AddMember("nodename",statsrapidjson::StringRef((CStats::singleton().getName()).c_str()),allocator);
 
-
-        //document.AddMember("nodename:",statsrapidjson::StringRef(nodename.c_str()),allocator);
-        document.AddMember("nodename:",statsrapidjson::StringRef((CStats::singleton().getName()).c_str()),allocator);
-
-        now.Format(nowstr, "%Y-%m-%dT%H:%M:%S.%0", false);
-        document.AddMember("reporttime", statsrapidjson::StringRef(nowstr.c_str()), allocator);
-        document.AddMember("upsecs", CStats::singleton().getUpsecs(), allocator);
-        document.AddMember("resetsecs", CStats::singleton().getResetsecs(), allocator);
+	now.Format(nowstr, "%Y-%m-%dT%H:%M:%S.%0", false);
+	document.AddMember("reporttime", statsrapidjson::StringRef(nowstr.c_str()), allocator);
+	document.AddMember("upsecs", CStats::singleton().getUpsecs(), allocator);
+	document.AddMember("resetsecs", CStats::singleton().getResetsecs(), allocator);
 
 	statsrapidjson::Value arrayValues(statsrapidjson::kArrayType);
 
 	for (auto cit = m_categories.begin(); cit != m_categories.end(); ++cit)
 	{
-	        statsrapidjson::Value row(statsrapidjson::kObjectType);
-	        //statsrapidjson::Value row(statsrapidjson::kArrayType);
+		statsrapidjson::Value row(statsrapidjson::kObjectType);
 		(*cit)->serialize(row,arrayValues, allocator);
-                //values8.PushBack(row,allocator);
 	}
 
-        //arrayValues.PushBack(values8, allocator);
-	document.AddMember("interfaces:", arrayValues, allocator);
-	//document.AddMember("interfaces:", arrayValues, allocator);
+	document.AddMember("interfaces", arrayValues, allocator);
 
 	row5.AddMember(statsrapidjson::StringRef("active"),CStats::singleton().getActive(), allocator);
-	document.AddMember("Sessions:",row5, allocator);
-
-
+	document.AddMember("sessions",row5, allocator);
 
 	statsrapidjson::StringBuffer strbuf;
 	statsrapidjson::Writer<statsrapidjson::StringBuffer> writer(strbuf);
@@ -610,9 +621,7 @@ void CStats::serializeJSON(std::string &json)
 	json = strbuf.GetString();
 	m_logger->info(json);
 	m_logger->flush();
-	int len=strlen(json.c_str());
-	//printf("Hello nilesh...!!!!!\n");
-        //get_current_file_size(len);
+	len=strlen(json.c_str());
 }
 
 void CStats::serializeCSV()
@@ -622,7 +631,7 @@ void CStats::serializeCSV()
 	std::string nowstr;
 	std::string str;
 
-        now.Format(nowstr, "%Y-%m-%dT%H:%M:%S.%0", false);
+	now.Format(nowstr, "%Y-%m-%dT%H:%M:%S.%0", false);
 
 	for (auto cit = m_categories.begin(); cit != m_categories.end(); ++cit)
 	{
@@ -647,17 +656,21 @@ void CStatCategory::serialize(statsrapidjson::Value &row,statsrapidjson::Value &
 
 	statsrapidjson::Value values8(statsrapidjson::kArrayType);
 
-	row.AddMember(statsrapidjson::StringRef("interfaces-name"), statsrapidjson::StringRef(getName().c_str()), allocator);
-	row.AddMember(statsrapidjson::StringRef("protocol-name"), statsrapidjson::StringRef(getPName().c_str()), allocator);
+	row.AddMember(statsrapidjson::StringRef("name"), statsrapidjson::StringRef(getName().c_str()), allocator); //interface name
+	row.AddMember(statsrapidjson::StringRef("protocol"), statsrapidjson::StringRef(getPName().c_str()), allocator);
 
-             for (auto vit = getValues().begin(); vit != getValues().end(); ++vit)       //class CStatPeer
-                  {
-		  	statsrapidjson::Value row1(statsrapidjson::kObjectType);
-                        (*vit)->serialize(row1,arrayValues,allocator);
-			row.AddMember(statsrapidjson::StringRef("peer"), row1, allocator);
-			//values8.PushBack(row1,allocator);
-			//row.AddMember(statsrapidjson::StringRef("peer"), values8, allocator);
-                 }
+	statsrapidjson::Value arrayValues1(statsrapidjson::kArrayType);
+
+	for (auto vit = getValues().begin(); vit != getValues().end(); ++vit)       //class CStatPeer
+	{
+		statsrapidjson::Value row1(statsrapidjson::kObjectType);
+		//statsrapidjson::Value row1(statsrapidjson::kArrayType);
+		(*vit)->serialize(row1,arrayValues1,allocator);
+		//row.AddMember(statsrapidjson::StringRef("peers"), row1, allocator);
+		row.AddMember(statsrapidjson::StringRef("peers"), arrayValues1, allocator);
+		//values8.PushBack(row1,allocator);
+		//row.AddMember(statsrapidjson::StringRef("peer"), values8, allocator);
+	}
 
 	//arrayValues.PushBack(values8, allocator);
 	//row.AddMember(statsrapidjson::StringRef("peer"), row1, allocator);
@@ -668,61 +681,68 @@ void CStatCategory::serialize(statsrapidjson::Value &row,statsrapidjson::Value &
 void CStatPeer::serialize(statsrapidjson::Value &row,statsrapidjson::Value &arrayValues, statsrapidjson::Document::AllocatorType &allocator)
 {
 
-        statsrapidjson::Value value(statsrapidjson::kObjectType);
-        statsrapidjson::Value value1(statsrapidjson::kObjectType);
-        statsrapidjson::Value value2(statsrapidjson::kObjectType);
-        statsrapidjson::Value value3(statsrapidjson::kObjectType);
-        statsrapidjson::Value value4(statsrapidjson::kObjectType);
+	statsrapidjson::Value value(statsrapidjson::kObjectType);
+	statsrapidjson::Value value1(statsrapidjson::kObjectType);
+	statsrapidjson::Value value2(statsrapidjson::kObjectType);
+	statsrapidjson::Value value3(statsrapidjson::kObjectType);
+	statsrapidjson::Value value4(statsrapidjson::kObjectType);
 
-        statsrapidjson::Value values(statsrapidjson::kArrayType);
-        statsrapidjson::Value values1(statsrapidjson::kArrayType);
-        statsrapidjson::Value values2(statsrapidjson::kArrayType);
-        statsrapidjson::Value values3(statsrapidjson::kArrayType);
+	statsrapidjson::Value values(statsrapidjson::kArrayType);
+	statsrapidjson::Value values1(statsrapidjson::kArrayType);
+	statsrapidjson::Value values2(statsrapidjson::kArrayType);
+	statsrapidjson::Value values3(statsrapidjson::kArrayType);
 
 	statsrapidjson::Value row1(statsrapidjson::kObjectType);
 	statsrapidjson::Value row2(statsrapidjson::kObjectType);
 	statsrapidjson::Value row3(statsrapidjson::kObjectType);
 	statsrapidjson::Value row4(statsrapidjson::kObjectType);
+	//statsrapidjson::Value row5(statsrapidjson::kObjectType);
+	//statsrapidjson::Value row6(statsrapidjson::kObjectType);
+
 
 	value4.AddMember(statsrapidjson::StringRef("ipv4"), statsrapidjson::StringRef(getAddress().c_str()), allocator);
-	row.AddMember(statsrapidjson::StringRef("Address"), value4, allocator); //1
+	row.AddMember(statsrapidjson::StringRef("address"), value4, allocator); //1
 
 	row.AddMember(statsrapidjson::StringRef("active"), statsrapidjson::StringRef(getActive().c_str()), allocator); //2,3
 	row.AddMember(statsrapidjson::StringRef("lastactivity"), statsrapidjson::StringRef(getLastactivity().c_str()), allocator);
 
-        auto pit = getHValues().begin();
+	auto pit = getHValues().begin();   //use loop when multiple peer is supported.
 
-		   row1.AddMember(statsrapidjson::StringRef("responsetimeout"),(*pit)->getRespTimeout(), allocator);
-		   row1.AddMember(statsrapidjson::StringRef("maxtimeouts"),(*pit)->getMaxTimeouts(), allocator);
-		   row1.AddMember(statsrapidjson::StringRef("timeouts"), (*pit)->getTimeouts(), allocator);
+	row1.AddMember(statsrapidjson::StringRef("responsetimeout"),(*pit)->getRespTimeout(), allocator);
+	row1.AddMember(statsrapidjson::StringRef("maxtimeouts"),(*pit)->getMaxTimeouts(), allocator);
+	row1.AddMember(statsrapidjson::StringRef("timeouts"), (*pit)->getTimeouts(), allocator);
 
-		   value2.AddMember(statsrapidjson::StringRef("sent"),(*pit)->getReqSent(), allocator);
-		   value2.AddMember(statsrapidjson::StringRef("received"),(*pit)->getReqReceived(), allocator);
-                   values2.PushBack(value2,allocator);
-	           row1.AddMember(statsrapidjson::StringRef("request"), values2, allocator);
+	value2.AddMember(statsrapidjson::StringRef("sent"),(*pit)->getReqSent(), allocator);
+	//row5.AddMember(statsrapidjson::StringRef("sent"),(*pit)->getReqSent(), allocator);
+	value2.AddMember(statsrapidjson::StringRef("received"),(*pit)->getReqReceived(), allocator);
+	//row6.AddMember(statsrapidjson::StringRef("received"),(*pit)->getReqReceived(), allocator);
+	//values2.PushBack(value2,allocator);
+	//row1.AddMember(statsrapidjson::StringRef("requests"), values2, allocator);
+	row1.AddMember(statsrapidjson::StringRef("requests"), value2, allocator);
 
-		   value3.AddMember(statsrapidjson::StringRef("sent"),(*pit)->getRespSent(), allocator);
-		   value3.AddMember(statsrapidjson::StringRef("received"),(*pit)->getRespReceived(), allocator);
-                   values3.PushBack(value3,allocator);
-	           row1.AddMember(statsrapidjson::StringRef("response"), values3, allocator);
+	value3.AddMember(statsrapidjson::StringRef("sent"),(*pit)->getRespSent(), allocator);
+	value3.AddMember(statsrapidjson::StringRef("received"),(*pit)->getRespReceived(), allocator);
+	//values3.PushBack(value3,allocator);
+	//row1.AddMember(statsrapidjson::StringRef("responses"), values3, allocator);
+	row1.AddMember(statsrapidjson::StringRef("responses"), value3, allocator);
 
-	row.AddMember(statsrapidjson::StringRef("Health"), row1, allocator);//4
+	row.AddMember(statsrapidjson::StringRef("health"), row1, allocator);//4
 
-        for (auto pit = getValues().begin(); pit != getValues().end(); ++pit)
-        {
-		   statsrapidjson::Value value(statsrapidjson::kObjectType);
+	for (auto pit = getValues().begin(); pit != getValues().end(); ++pit)
+	{
+		statsrapidjson::Value value(statsrapidjson::kObjectType);
 
-		   value.AddMember(statsrapidjson::StringRef("type"), statsrapidjson::StringRef((*pit)->getName().c_str()), allocator);
-		   value.AddMember(statsrapidjson::StringRef("direction"), statsrapidjson::StringRef((*pit)->getDname().c_str()), allocator);
-		   value.AddMember(statsrapidjson::StringRef("count"), (*pit)->getValue(), allocator);
-		   value.AddMember(statsrapidjson::StringRef("last"),(*pit)->getValue(), allocator);
-		   //value.AddMember(statsrapidjson::StringRef("last"),statsrapidjson::StringRef((*pit)->getTime().c_str()), allocator);
-                   values.PushBack(value,allocator);
-        }
+		value.AddMember(statsrapidjson::StringRef("type"), statsrapidjson::StringRef((*pit)->getName().c_str()), allocator);
+		value.AddMember(statsrapidjson::StringRef("direction"), statsrapidjson::StringRef((*pit)->getDname().c_str()), allocator);
+		value.AddMember(statsrapidjson::StringRef("count"), (*pit)->getValue(), allocator);
+		value.AddMember(statsrapidjson::StringRef("last"),statsrapidjson::StringRef((*pit)->getTime().c_str()), allocator);
+		//value.AddMember(statsrapidjson::StringRef("last"),statsrapidjson::StringRef((*pit)->getTime().c_str()), allocator);
+		values.PushBack(value,allocator);
+	}
 
-	row.AddMember(statsrapidjson::StringRef("Messages"), values, allocator);//5
-    //row.AddMember(statsrapidjson::StringRef("Peer"),row3,allocator);
-	//arrayValues.PushBack(row, allocator);
+	row.AddMember(statsrapidjson::StringRef("messages"), values, allocator);//5*/
+	//row.AddMember(statsrapidjson::StringRef("Peer"),row3,allocator);
+	arrayValues.PushBack(row, allocator);
 
 }
 
@@ -732,11 +752,11 @@ void CStatCategory::serialize(std::stringstream &ss)
 
 	for (auto pit = getValues().begin(); pit != getValues().end(); ++pit)
 	{
-              for (auto vit = (*pit)->getValues().begin(); vit != (*pit)->getValues().end(); ++vit)       //class CStatValue
-              {
-		ss << "," << (*vit)->getValue();
-		cnt++;
-              }
+		for (auto vit = (*pit)->getValues().begin(); vit != (*pit)->getValues().end(); ++vit)       //class CStatValue
+		{
+			ss << "," << (*vit)->getValue();
+			cnt++;
+		}
 	}
 
 	for (; cnt < CStats::singleton().getMaxValues(); cnt++)
@@ -749,29 +769,29 @@ void CStatCategory::serialize(std::stringstream &ss)
 int parse_config_param(const char *param,const char *json,char **response,char *buff)
 {
 
-     const char *ret;
-     statsrapidjson::Document doc;
-     doc.Parse(json);
+	const char *ret;
+	statsrapidjson::Document doc;
+	doc.Parse(json);
 
 
-     if(doc.HasParseError())
-     {
-             if (response)
-                     *response = strdup("{\"result\": \"ERROR\"}");
-             return -1;
-     }
-     if(!doc.HasMember(param) || !doc[param].IsString())
-     {
-             if (response)
-                     *response = strdup("{\"result\": \"ERROR\"}");
-             return -1;
-     }
+	if(doc.HasParseError())
+	{
+		if (response)
+			*response = strdup("{\"result\": \"ERROR\"}");
+		return -1;
+	}
+	if(!doc.HasMember(param) || !doc[param].IsString())
+	{
+		if (response)
+			*response = strdup("{\"result\": \"ERROR\"}");
+		return -1;
+	}
 
-     ret= doc[param].GetString();
-     //printf("In parse_config_param() ret:%s",ret);
-     strcpy(buff,ret);
+	ret= doc[param].GetString();
+	//printf("In parse_config_param() ret:%s",ret);
+	strcpy(buff,ret);
 
-     return 0;
+	return 0;
 
 }
 
@@ -797,52 +817,96 @@ void  construct_json(const char *param,const char *value,const char *effect, cha
 }
 
 
-extern clock_t cp_stats_execution_time;
+typedef long long int _timer_t;
+
+#define TIMER_GET_CURRENT_TP(now)                                             \
+({                                                                            \
+ struct timespec ts;                                                          \
+ now = clock_gettime(CLOCK_REALTIME,&ts) ?                                    \
+    -1 : (((_timer_t)ts.tv_sec) * 1000000000) + ((_timer_t)ts.tv_nsec);   \
+ now;                                                                         \
+ })
+
+#define TIMER_GET_ELAPSED_NS(start)                                           \
+({                                                                            \
+ _timer_t ns;                                                                 \
+ TIMER_GET_CURRENT_TP(ns);                                                    \
+ if (ns != -1){                                                               \
+    ns -= start;                                                          \
+ }                                        \
+ ns;                                                                          \
+ })
+
+
+extern _timer_t st_time;
 
 void
 get_current_file_size(size_t len)
 {
 
-     struct stat st;
-     stat("logs/cp_stat.log",&st);
-     size_t size = st.st_size;
-     size_t max_size = (20*1024*1024);
-     //size_t max_size = (5000);
-     //printf("current json size is %lu \n",len);
-     //printf("current file size is : %lu \n",size);
-     static int flag=0;
-     static clock_t reset_time;
-     clock_t cp_stats_reset_time;
+	struct stat st;
+	stat("logs/cp_stat.log",&st);
+	size_t size = st.st_size;
+	size_t max_size = optStatMaxSize * 1024 * 1024 ;
+	static int flag=0;
+	static _timer_t reset_time = 0;
+	_timer_t cp_stats_reset_time;
 
-     //reset_time = clock()-cp_stats.execution_time;
-     if (flag==0)
-     reset_time = cp_stats_execution_time ;
+	long long int up_time = 0;
+	up_time = TIMER_GET_ELAPSED_NS(st_time);
+	up_time = up_time/1000000000;
 
-     if( len > max_size-size )         //reset log will be take place
-     {
-     //reset_time+ = cp_stats.reset_time;
-     reset_time = clock();
-     flag=1;
-     }
+	if( len > (max_size-size) )         //reset log will be take place
+	{
+		reset_time = up_time;
+	}
 
+	cp_stats_reset_time = up_time - reset_time;
+	CStats::singleton().setResetsecs(cp_stats_reset_time);
 
-     //current_time = clock();
-     //reset_time = current_time-cp_stats.execution_time;
-      cp_stats_reset_time = clock()-reset_time;
-      cp_stats_reset_time = cp_stats_reset_time/CLOCKS_PER_SEC;
-
-     CStats::singleton().setResetsecs(cp_stats_reset_time);
-
-      //cp_stats.reset_time = ((clock()-reset_time)/CLOCKS_PER_SEC);
-      //printf("reset time is %lu\n",cp_stats_reset_time);
- }
+}
 
 
+void CStats::updateIp(const char *addr, int interface, int peerid)
+{
+		m_categories[interface]->updatePeerAddress(peerid, addr);
+}
+
+void csUpdateIp(const char *addr, int interface, int peerid)
+{
+		CStats::singleton().updateIp(addr,interface,peerid);
+}
 
 
+	/*//struct timespec ts;
+	//clock_gettime(CLOCK_REALTIME,&ts);
 
+	//reset_time = clock()-cp_stats.execution_time;
+	if (flag==0)
+		//reset_time = cp_stats_execution_time ;
+		//reset_time = (st_time/1000000000) ;
+		reset_time = TIMER_GET_ELAPSED_NS(st_time) ;
+		reset_time = reset_time/1000000000;
 
+	if( len > max_size-size )         //reset log will be take place
+	{
+		//reset_time+ = cp_stats.reset_time;
+		//reset_time = clock();
+		reset_time = ts.tv_sec;
+		flag=1;
+	}
 
+	printf("st_time is %llu\n",st_time);
+	printf("reset time is %llu\n",reset_time);
+	//current_time = clock();
+	//reset_time = current_time-cp_stats.execution_time;
+	//cp_stats_reset_time = clock()-reset_time;
+	cp_stats_reset_time = ts.tv_sec-reset_time;
+	printf("ts.tv_Sec is %lu\n",ts.tv_sec);
+	//cp_stats_reset_time = cp_stats_reset_time/CLOCKS_PER_SEC;
 
+	CStats::singleton().setResetsecs(cp_stats_reset_time);
 
+	//cp_stats.reset_time = ((clock()-reset_time)/CLOCKS_PER_SEC);
+	//printf("reset time is %lu\n",cp_stats_reset_time);*/
 

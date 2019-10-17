@@ -28,7 +28,7 @@ enum CLoggerSeverity {
 };
 
 extern int clSystemLog;
-//extern int optStatMaxSize; 
+extern int optStatMaxSize;
 
 
 void clSetOption(enum CLoggerOptions opt, const char *val);
@@ -52,6 +52,7 @@ void clAddobject(const char *category, char *log_level, const char *message);
 int clRecentLogger(const char *request,char **response);
 int clRecentLogMaxsize(const char *request, char **response);
 int clRecentSetMaxsize(const char *json, char **response);
+int clchange_file_size(const char *json, char **response);
 
 #ifdef __cplusplus
 }

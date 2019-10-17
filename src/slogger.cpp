@@ -135,7 +135,9 @@ const std::string & SLogger::get_name(){
 
 void SLogger::log( _LogType lt, const char *format, va_list &args )
 {
-   char buffer[ 2048 ];
+   //char buffer[ 2048 ];
+   char buffer[ 8192 ];      /*change size to fit json object into single line
+							   of log file cp_stat.log */
 
    vsnprintf( buffer, sizeof(buffer), format, args );
 
