@@ -27,17 +27,21 @@ enum CLoggerSeverity {
         eCLSeverityCritical
 };
 
+enum log_level
+{
+	activate_log_level = 1,
+};
 extern int clSystemLog;
 extern int optStatMaxSize;
 
 
 void clSetOption(enum CLoggerOptions opt, const char *val);
 
-void clInit(const char *app);
+void clInit(const char *app, uint8_t cp_logger);
 void clStart(void);
 void clStop(void);
 
-int clAddLogger(const char *logname);
+int clAddLogger(const char *logname, uint8_t cp_logger);
 char *clGetLoggers(void);
 int clUpdateLogger(const char *json, char **response);
 

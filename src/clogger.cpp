@@ -116,7 +116,7 @@ class Logger
 {
 	public:
 
-		static void init( const char *app ) { singleton()._init( app ); }
+		static void init( const char *app, uint8_t cp_logger ) { singleton()._init( app, cp_logger ); }
 		static void init( const std::string &app ) { init( app.c_str() ); }
 		static void cleanup() { singleton()._cleanup(); }
 		static void flush() { singleton()._flush(); }
@@ -131,7 +131,7 @@ class Logger
 
 		static Logger &singleton() { if (!m_singleton) m_singleton = new Logger(); return *m_singleton; }
 
-		static int addLogger(const char *logname) { return singleton()._addLogger(logname); }
+		static int addLogger(const char *logname, uint8_t cp_logger) { return singleton()._addLogger(logname, cp_logger); }
 		static int change_file_size(int size)     { return singleton()._change_file_size(size); }
 
 
@@ -141,12 +141,12 @@ class Logger
 		Logger() {}
 		~Logger() {}
 
-		void _init( const char *app );
+		void _init( const char *app, uint8_t cp_logger);
 		void _cleanup();
 		void _flush();
 		std::string _serialize();
 		bool _updateLogger(const std::string &loggerName, int value);
-		int _addLogger(const char *logname);
+		int _addLogger(const char *logname, uint8_t cp_logger);
 		int _change_file_size(int size);
 
 		std::vector<spdlog::sink_ptr> m_sinks;
@@ -239,9 +239,9 @@ void clSetOption(CLoggerOptions opt, const char *val)
         }
 }
 
-void clInit(const char *app)
+void clInit(const char *app, uint8_t cp_logger)
 {
-	Logger::init(app);
+	Logger::init(app, cp_logger);
 }
 
 void clStart(void)
@@ -254,9 +254,9 @@ void clStop(void)
 	Logger::cleanup();
 }
 
-int clAddLogger(const char *logname)
+int clAddLogger(const char *logname, uint8_t cp_logger)
 {
-	return Logger::addLogger(logname);
+	return Logger::addLogger(logname, cp_logger);
 }
 
 char *clGetLoggers()
@@ -423,7 +423,7 @@ int clRecentSetMaxsize(const char *json, char **response)
 Logger *Logger::m_singleton = NULL;
 int clSystemLog = -1;
 
-void Logger::_init( const char *app )
+void Logger::_init( const char *app, uint8_t cp_logger)
 {
         m_sinks.push_back( std::make_shared<spdlog::sinks::syslog_sink>() );
         m_sinks.push_back( std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>() );
@@ -455,20 +455,26 @@ void Logger::_init( const char *app )
 
         std::stringstream ss;
         ss << "[%Y-%m-%dT%H:%M:%S.%e] [" << app << "] [%n] [%l] %v";
-	m_pattern = ss.str();
+		m_pattern = ss.str();
 
-	clSystemLog  = _addLogger("system");
+		clSystemLog  = _addLogger("system", cp_logger);
         m_stat = new SLogger( "stat", m_statsinks, "%v", optLogQueueSize );
         m_audit = new SLogger( "audit", m_auditsinks, "%v", optLogQueueSize );
 
-        m_loggers[clSystemLog]->set_level( spdlog::level::info );
+        //m_loggers[clSystemLog]->set_level( spdlog::level::info );
         m_stat->set_level(spdlog::level::info);
         m_audit->set_level(spdlog::level::warn);
 }
 
-int Logger::_addLogger(const char *logname)
+int Logger::_addLogger(const char *logname, uint8_t cp_logger)
 {
 	m_loggers.push_back(new SLogger(logname, m_sinks, m_pattern.c_str(), optLogQueueSize));
+
+	if(cp_logger == activate_log_level)
+		m_loggers[m_loggers.size() - 1]->set_level( spdlog::level::trace );
+	else
+		m_loggers[m_loggers.size() - 1]->set_level( spdlog::level::info );
+
 	return m_loggers.size() - 1;
 }
 
