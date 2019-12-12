@@ -238,11 +238,12 @@ namespace CachedDNS
       if ( (status = ares_init(&m_channel)) == ARES_SUCCESS )
       {
          struct ares_options opt;
-         opt.timeout = 1000;
+         opt.timeout = m_cache.getQueryTimeoutMS();
+         opt.tries = m_cache.getQueryTries();
          opt.ndots = 0;
          opt.flags = ARES_FLAG_EDNS;
          opt.ednspsz = 8192;
-         ares_init_options( &m_channel, &opt, ARES_OPT_TIMEOUTMS | ARES_OPT_NDOTS | ARES_OPT_EDNSPSZ | ARES_OPT_FLAGS );
+         ares_init_options( &m_channel, &opt, ARES_OPT_TIMEOUTMS | ARES_OPT_TRIES | ARES_OPT_NDOTS | ARES_OPT_EDNSPSZ | ARES_OPT_FLAGS );
       }
       else
       {
@@ -278,7 +279,7 @@ namespace CachedDNS
       ns.udp_port = udp_port;
       ns.tcp_port = tcp_port;
 
-      m_servers[ns.address] = ns;
+      m_servers[std::string(ns.address)] = ns;
    }
 
    void QueryProcessor::removeNamedServer(const char *address)
@@ -357,6 +358,8 @@ namespace CachedDNS
    unsigned int Cache::m_concur = 10;
    int Cache::m_percent = 80;
    long Cache::m_interval = 60;
+   int Cache::m_querytimeout = 500;
+   int Cache::m_querytries = 1;
 
    Cache::Cache()
       : m_qp( *this ),

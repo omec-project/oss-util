@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 
+#include "cp_adapter.h"
 #include "slogger.h"
 #include "stime.h"
 
