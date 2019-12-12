@@ -1,9 +1,25 @@
+/*
+ * Copyright (c) 2019 Sprint
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "cp_adapter.h"
+#include "gw_adapter.h"
 #include "stime.h"
 
 #define RAPIDJSON_NAMESPACE statsrapidjson
@@ -22,211 +38,6 @@ int *oss_cnt_peer;
 extern  long oss_resetsec;
 extern int s5s8MessageTypes[];
 
-MessageType ossS5s8MessageDefs[] = {
-        {       3       , "Version Not Supported Indication",dNone      },
-        {       32      , "Create Session Request",  dIn        	},//if SGWC then send, if PGWC then recv
-        {       33      , "Create Session Response",dRespRcvd   	},//if SGWC then recv, if PGWC then send
-        {       36      , "Delete Session Request",  dIn        	},//if SGWC then send, if PGWC then recv
-        {       37      , "Delete Session Response",dRespRcvd   	},//if SGWC then recv, if PGWC then send
-        {       34      , "Modify Bearer Request",dIn 			},	  //if SGWC then send, if PGWC then recv
-        {       35      , "Modify Bearer Response",dRespRcvd    	},//if SGWC then recv, if PGWC then send
-        {       40      , "Remote UE Report Notification",dNone 	},
-        {       41      , "Remote UE Report Acknowledge",dNone  	},
-        {       38      , "Change Notification Request",dNone   	},
-        {       39      , "Change Notification Response",dNone  	},
-        {       164     , "Resume Notification",dNone   		},
-        {       165     , "Resume Acknowledge",dNone    		},
-        {       64      , "Modify Bearer Command",dNone 		},
-        {       65      , "Modify Bearer Failure Indication",dNone      },
-        {       66      , "Delete Bearer Command",dNone 		},
-        {       67      , "Delete Bearer Failure Indication",dNone      },
-        {       68      , "Bearer Resource Command",dNone       	},
-        {       69      , "Bearer Resource Failure Indication",dNone    },
-        {       71      , "Trace Session Activation",dNone      	},
-        {       72      , "Trace Session Deactivation",dNone    	},
-        {       95      , "Create Bearer Request",dNone 		},//if SGWC then recv, if PGWC then send
-        {       96      , "Create Bearer Response",dNone        	},//if SGWC then send, if PGWC then recv
-        {       97      , "Update Bearer Request",dNone 		},
-        {       98      , "Update Bearer Response",dNone        	},
-        {       99      , "Delete Bearer Request",dNone 		},
-        {       100     , "Delete Bearer Response",dNone        	},
-        {       101     , "Delete PDN Connection Set Request",dNone     },
-        {       102     , "Delete PDN Connection Set Response",dNone    },
-        {       103     , "PGW Downlink Triggering Notification",dNone  },
-        {       104     , "PGW Downlink Triggering Acknowledge",dNone   },
-        {       162     , "Suspend Notification",dNone  		},
-        {       163     , "Suspend Acknowledge",dNone   		},
-        {       200     , "Update PDN Connection Set Request",dNone     },
-        {       201     , "Update PDN Connection Set Response",dNone    },
-        {       -1      , NULL  					}
-};
-
-MessageType ossS11MessageDefs[] = {
-        {       3       ,"Version Not Supported Indication", dNone 	},
-        {       32      ,"Create Session Request", dIn 			},
-        {       33      ,"Create Session Response", dRespSend 		},
-        {       36      ,"Delete Session Request", dIn 			},
-        {       37      ,"Delete Session Response", dRespSend 		},
-        {       34      ,"Modify Bearer Request", dIn 			},
-        {       35      ,"Modify Bearer Response", dRespSend 		},
-        {       40      ,"Remote UE Report Notification", dNone 	},
-        {       41      ,"Remote UE Report Acknowledge", dNone 		},
-        {       38      ,"Change Notification Request", dNone 		},
-        {       39      ,"Change Notification Response", dNone 		},
-        {       164     ,"Resume Notification", dNone 			},
-        {       165     ,"Resume Acknowledge", dNone 			},
-        {       64      ,"Modify Bearer Command", dNone 		},
-        {       65      ,"Modify Bearer Failure Indication", dNone 	},
-        {       66      ,"Delete Bearer Command", dNone 		},
-        {       67      ,"Delete Bearer Failure Indication", dNone 	},
-        {       68      ,"Bearer Resource Command", dNone 		},
-        {       69      ,"Bearer Resource Failure Indication", dNone 	},
-        {       70      ,"Downlink Data Notification Failure Indication", dNone },
-        {       71      ,"Trace Session Activation", dNone 		},
-        {       72      ,"Trace Session Deactivation", dNone 		},
-        {       73      ,"Stop Paging Indication", dNone 		},
-        {       95      ,"Create Bearer Request", dOut	 		},
-        {       96      ,"Create Bearer Response", dIn	 		},
-        {       97      ,"Update Bearer Request", dNone 		},
-        {       98      ,"Update Bearer Response", dNone 		},
-        {       99      ,"Delete Bearer Request", dNone 		},
-        {       100     ,"Delete Bearer Response", dNone 		},
-        {       101     ,"Delete PDN Connection Set Request", dNone 	},
-        {       102     ,"Delete PDN Connection Set Response", dNone 	},
-        {       103     ,"PGW Downlink Triggering Notification", dNone 	},
-        {       104     ,"PGW Downlink Triggering Acknowledge", dNone 	},
-        {       162     ,"Suspend Notification", dNone 			},
-        {       163     ,"Suspend Acknowledge", dNone 			},
-        {       160     ,"Create Forwarding Tunnel Request", dNone 	},
-        {       161     ,"Create Forwarding Tunnel Response", dNone 	},
-        {       166     ,"Create Indirect Data Forwarding Tunnel Request", dNone },
-        {       167     ,"Create Indirect Data Forwarding Tunnel Response", dNone },
-        {       168     ,"Delete Indirect Data Forwarding Tunnel Request", dNone },
-        {       169     ,"Delete Indirect Data Forwarding Tunnel Response", dNone },
-        {       170     ,"Release Access Bearers Request", dIn 		},
-        {       171     ,"Release Access Bearers Response", dOut 	},
-        {       176     ,"Downlink Data Notification", dOut 		},
-        {       177     ,"Downlink Data Notification Acknowledge", dIn 	},
-        {       179     ,"PGW Restart Notification", dNone 		},
-        {       180     ,"PGW Restart Notification Acknowledge", dNone 	},
-        {       211     ,"Modify Access Bearers Request", dNone 	},
-        {       212     ,"Modify Access Bearers Response", dNone 	},
-        {       -1      , NULL  					}
-};
-
-MessageType ossSxaMessageDefs[] = {
-        {	   1	  ,"PFCP Heartbeat Request",dNone		},
-        {	   2	  ,"PFCP Heartbeat Response",dNone		},
-        {	   5	  ,"PFCP Association Setup Request",dOut	},
-        {	   6	  ,"PFCP Association Setup Response",dRespRcvd	},
-        {	   7	  ,"PFCP Association Update Request",dNone	},
-        {	   8	  ,"PFCP Association Update Response",dNone	},
-        {	   9	  ,"PFCP Association Release Request",dNone	},
-        {	   10	  ,"PFCP Association Release Response",dNone	},
-        {	   11	  ,"PFCP Version Not Supported Response",dNone	},
-        {	   12	  ,"PFCP Node Report Request",dNone		},
-        {	   13	  ,"PFCP Node Report Response",dNone		},
-        {	   14	  ,"PFCP Session Set Deletion Request",dNone	},
-        {	   15	  ,"PFCP Session Set Deletion Response",dNone	},
-        {	   50	  ,"PFCP Session Establishment Request",dOut	},
-        {	   51	  ,"PFCP Session Establishment Response",dRespRcvd},
-        {	   52	  ,"PFCP Session Modification Request",dOut	},
-        {	   53	  ,"PFCP Session Modification Response",dRespRcvd},
-        {	   54	  ,"PFCP Session Deletion Request",dOut		},
-        {	   55	  ,"PFCP Session Deletion Response",dRespRcvd	},
-        {	   56	  ,"PFCP Session Report Request",dOut		},
-        {	   57	  ,"PFCP Session Report Response",dRespRcvd	},
-        {          -1     , NULL  }
-};
-
-MessageType ossSxbMessageDefs[] = {
-        {	  1	  ,"PFCP Heartbeat Request",dNone		},
-        {	  2	  ,"PFCP Heartbeat Response",dNone		},
-        {	  5	  ,"PFCP Association Setup Request",dOut	},
-        {	  6	  ,"PFCP Association Setup Response",dRespRcvd	},
-        {	  7	  ,"PFCP Association Update Request",dNone	},
-        {	  8	  ,"PFCP Association Update Response",dNone	},
-        {	  9	  ,"PFCP Association Release Request",dNone	},
-        {	  10	  ,"PFCP Association Release Response",dNone	},
-        {	  11	  ,"PFCP Version Not Supported Response",dNone	},
-        {	  12	  ,"PFCP Node Report Request",dNone		},
-        {	  13	  ,"PFCP Node Report Response",dNone		},
-        {	  14	  ,"PFCP Session Set Deletion Request",dNone	},
-        {	  15	  ,"PFCP Session Set Deletion Response",dNone	},
-        {	  50	  ,"PFCP Session Establishment Request",dOut	},
-        {	  51	  ,"PFCP Session Establishment Response",dRespRcvd},
-        {	  52	  ,"PFCP Session Modification Request",dOut	},
-        {	  53	  ,"PFCP Session Modification Response",dRespRcvd},
-        {	  54	  ,"PFCP Session Deletion Request",dOut		},
-        {	  55	  ,"PFCP Session Deletion Response",dRespRcvd	},
-        {	  56	  ,"PFCP Session Report Request",dOut		},
-        {	  57	  ,"PFCP Session Report Response",dRespRcvd	},
-        {         -1      , NULL  }
-};
-
-MessageType ossSxaSxbMessageDefs[] = {
-        {	  1	 ,"PFCP Heartbeat Request",dNone		},
-        {	  2	 ,"PFCP Heartbeat Response",dNone		},
-        {	  3	 ,"PFCP PFD Management Request",dNone		},
-        {	  4	 ,"PFCP PFD Management Response",dNone		},
-        {	  5	 ,"PFCP Association Setup Request",dOut		},
-        {	  6	 ,"PFCP Association Setup Response",dRespRcvd	},
-        {	  7	 ,"PFCP Association Update Request",dNone	},
-        {	  8	 ,"PFCP Association Update Response",dNone	},
-        {	  9	 ,"PFCP Association Release Request",dNone	},
-        {	  10	 ,"PFCP Association Release Response",dNone	},
-        {	  11	 ,"PFCP Version Not Supported Response",dNone	},
-        {	  12	 ,"PFCP Node Report Request",dNone		},
-        {	  13	 ,"PFCP Node Report Response",dNone		},
-        {	  14	 ,"PFCP Session Set Deletion Request",dNone	},
-        {	  15	 ,"PFCP Session Set Deletion Response",dNone	},
-        {	  50	 ,"PFCP Session Establishment Request",dOut	},
-        {	  51	 ,"PFCP Session Establishment Response",dRespRcvd},
-        {	  52	 ,"PFCP Session Modification Request",dOut	},
-        {	  53	 ,"PFCP Session Modification Response",dRespRcvd},
-        {	  54	 ,"PFCP Session Deletion Request",dOut		},
-        {	  55	 ,"PFCP Session Deletion Response",dRespRcvd	},
-        {	  56	 ,"PFCP Session Report Request",dOut		},
-        {	  57	 ,"PFCP Session Report Response",dRespRcvd	},
-        {         -1     , NULL  					}
-};
-
-MessageType ossSystemMessageDefs[] = {
-    {  0    ,"Number of active session",dNone	},
-    {  1    ,"Number of ues",dNone  		},
-    {  2    ,"Number of bearers",dNone          },
-    {  3    ,"Number of pdn connections",dNone  },
-    {  -1   , NULL  				}
-};
-
-char ossInterfaceStr[][10] = {
-    "s11" ,
-    "s5s8",
-    "sxa",
-    "sxb",
-    "sxasxb",
-    "gx",
-    "none"
-};
-
-char ossInterfaceProtocolStr[][10] = {
-    "gtpv2" ,
-    "gtpv2",
-    "pfcp",
-    "pfcp",
-    "pfcp",
-    "none",
-    "none"
-};
-
-
-char ossGatewayStr[][10] = {
-    "none",
-    "SGWC",
-    "PGWC",
-    "SAEGWC"
-};
-
 void cli_init(cli_node_t *cli_node,int *cnt_peer)
 {
 	std::cout << ".................................. cli init................" << std::endl;
@@ -241,7 +52,7 @@ void CStatMessages::serializeS11(const SPeer* peer,
     statsrapidjson::Document::AllocatorType& allocator)
 {
     for(int i = 0; i < S11_MSG_TYPE_LEN; i++) {
-        if((peer->stats.s11[i].cnt[0] == 0 && peer->stats.s11[i].cnt[1] == 0) && suppress) {
+        if((peer->stats.s11[i].cnt[SENT] == 0 && peer->stats.s11[i].cnt[RCVD] == 0) && suppress) {
             continue;
         }
 
@@ -251,30 +62,30 @@ void CStatMessages::serializeS11(const SPeer* peer,
 
         switch(ossS11MessageDefs[i].dir) {
         case dIn:
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s11[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s11[i].cnt[RCVD], allocator);
             break;
 
         case dOut:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s11[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s11[i].cnt[SENT], allocator);
             break;
 
         case dRespSend:
-            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.s11[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.s11[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.s11[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.s11[i].cnt[REJ], allocator);
             break;
 
         case dRespRcvd:
-            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.s11[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.s11[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.s11[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.s11[i].cnt[REJ], allocator);
             break;
 
         case dBoth:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s11[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s11[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s11[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s11[i].cnt[REJ], allocator);
             break;
 
         case dNone:
-            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.s11[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.s11[i].cnt[BOTH], allocator);
             break;
         }
 
@@ -290,7 +101,7 @@ void CStatMessages::serializeS5S8(const SPeer* peer,
     statsrapidjson::Document::AllocatorType& allocator)
 {
     for(int i = 0; i < S5S8_MSG_TYPE_LEN; i++) {
-        if((peer->stats.s5s8[i].cnt[0] == 0 && peer->stats.s5s8[i].cnt[1] == 0) && suppress) {
+        if((peer->stats.s5s8[i].cnt[SENT] == 0 && peer->stats.s5s8[i].cnt[RCVD] == 0) && suppress) {
             continue;
         }
         statsrapidjson::Value value(statsrapidjson::kObjectType);
@@ -299,30 +110,30 @@ void CStatMessages::serializeS5S8(const SPeer* peer,
 
         switch(ossS5s8MessageDefs[i].dir) {
         case dIn:
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s5s8[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s5s8[i].cnt[RCVD], allocator);
             break;
 
         case dOut:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s5s8[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s5s8[i].cnt[SENT], allocator);
             break;
 
         case dRespSend:
-            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.s5s8[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.s5s8[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.s5s8[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.s5s8[i].cnt[REJ], allocator);
             break;
 
         case dRespRcvd:
-            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.s5s8[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.s5s8[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.s5s8[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.s5s8[i].cnt[REJ], allocator);
             break;
 
         case dBoth:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s5s8[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s5s8[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.s5s8[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.s5s8[i].cnt[REJ], allocator);
             break;
 
         case dNone:
-            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.s5s8[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.s5s8[i].cnt[BOTH], allocator);
             break;
         }
 
@@ -338,7 +149,7 @@ void CStatMessages::serializeSxa(const SPeer* peer,
     statsrapidjson::Document::AllocatorType& allocator)
 {
     for(int i = 0; i < SXA_MSG_TYPE_LEN; i++) {
-        if((peer->stats.sxa[i].cnt[0] == 0 && peer->stats.sxa[i].cnt[1] == 0) && suppress) {
+        if((peer->stats.sxa[i].cnt[SENT] == 0 && peer->stats.sxa[i].cnt[RCVD] == 0) && suppress) {
             continue;
         }
         statsrapidjson::Value value(statsrapidjson::kObjectType);
@@ -347,30 +158,30 @@ void CStatMessages::serializeSxa(const SPeer* peer,
 
         switch(ossSxaMessageDefs[i].dir) {
         case dIn:
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxa[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxa[i].cnt[RCVD], allocator);
             break;
 
         case dOut:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxa[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxa[i].cnt[SENT], allocator);
             break;
 
         case dRespSend:
-            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.sxa[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.sxa[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.sxa[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.sxa[i].cnt[REJ], allocator);
             break;
 
         case dRespRcvd:
-            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.sxa[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.sxa[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.sxa[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.sxa[i].cnt[REJ], allocator);
             break;
 
         case dBoth:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxa[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxa[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxa[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxa[i].cnt[REJ], allocator);
             break;
 
         case dNone:
-            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.sxa[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.sxa[i].cnt[BOTH], allocator);
             break;
         }
 
@@ -386,7 +197,7 @@ void CStatMessages::serializeSxb(const SPeer* peer,
     statsrapidjson::Document::AllocatorType& allocator)
 {
     for(int i = 0; i < SXB_MSG_TYPE_LEN; i++) {
-        if((peer->stats.sxb[i].cnt[0] == 0 && peer->stats.sxb[i].cnt[1] == 0) && suppress) {
+        if((peer->stats.sxb[i].cnt[SENT] == 0 && peer->stats.sxb[i].cnt[RCVD] == 0) && suppress) {
             continue;
         }
         statsrapidjson::Value value(statsrapidjson::kObjectType);
@@ -395,30 +206,30 @@ void CStatMessages::serializeSxb(const SPeer* peer,
 
         switch(ossSxbMessageDefs[i].dir) {
         case dIn:
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxb[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxb[i].cnt[RCVD], allocator);
             break;
 
         case dOut:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxb[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxb[i].cnt[SENT], allocator);
             break;
 
         case dRespSend:
-            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.sxb[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.sxb[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.sxb[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.sxb[i].cnt[REJ], allocator);
             break;
 
         case dRespRcvd:
-            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.sxb[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.sxb[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.sxb[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.sxb[i].cnt[REJ], allocator);
             break;
 
         case dBoth:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxb[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxb[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxb[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxb[i].cnt[REJ], allocator);
             break;
 
         case dNone:
-            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.sxb[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.sxb[i].cnt[BOTH], allocator);
             break;
         }
 
@@ -434,7 +245,7 @@ void CStatMessages::serializeSxaSxb(const SPeer* peer,
     statsrapidjson::Document::AllocatorType& allocator)
 {
     for(int i = 0; i < SXASXB_MSG_TYPE_LEN; i++) {
-        if((peer->stats.sxasxb[i].cnt[0] == 0 && peer->stats.sxasxb[i].cnt[1] == 0) && suppress) {
+        if((peer->stats.sxasxb[i].cnt[SENT] == 0 && peer->stats.sxasxb[i].cnt[RCVD] == 0) && suppress) {
             continue;
         }
         statsrapidjson::Value value(statsrapidjson::kObjectType);
@@ -443,30 +254,30 @@ void CStatMessages::serializeSxaSxb(const SPeer* peer,
 
         switch(ossSxaSxbMessageDefs[i].dir) {
         case dIn:
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxasxb[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxasxb[i].cnt[RCVD], allocator);
             break;
 
         case dOut:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxasxb[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxasxb[i].cnt[SENT], allocator);
             break;
 
         case dRespSend:
-            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.sxasxb[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.sxasxb[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.sxasxb[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.sxasxb[i].cnt[REJ], allocator);
             break;
 
         case dRespRcvd:
-            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.sxasxb[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.sxasxb[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.sxasxb[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.sxasxb[i].cnt[REJ], allocator);
             break;
 
         case dBoth:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxasxb[i].cnt[0], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxasxb[i].cnt[1], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.sxasxb[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.sxasxb[i].cnt[REJ], allocator);
             break;
 
         case dNone:
-            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.sxasxb[i].cnt[0], allocator);
+            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.sxasxb[i].cnt[BOTH], allocator);
             break;
         }
 
@@ -475,6 +286,55 @@ void CStatMessages::serializeSxaSxb(const SPeer* peer,
         arrayObjects.PushBack(value, allocator);
     }
 }
+
+void CStatMessages::serializeGx(const SPeer* peer,
+    statsrapidjson::Value& row,
+    statsrapidjson::Value& arrayObjects,
+    statsrapidjson::Document::AllocatorType& allocator)
+{
+    for(int i = 0; i < GX_MSG_TYPE_LEN; i++) {
+        if((peer->stats.gx[i].cnt[SENT] == 0 && peer->stats.gx[i].cnt[RCVD] == 0) && suppress) {
+            continue;
+        }
+        statsrapidjson::Value value(statsrapidjson::kObjectType);
+        value.AddMember(
+            statsrapidjson::StringRef("type"), statsrapidjson::StringRef(ossGxMessageDefs[i].msgname), allocator);
+
+        switch(ossGxMessageDefs[i].dir) {
+        case dIn:
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.gx[i].cnt[RCVD], allocator);
+            break;
+
+        case dOut:
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.gx[i].cnt[SENT], allocator);
+            break;
+
+        case dRespSend:
+            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.gx[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.gx[i].cnt[REJ], allocator);
+            break;
+
+        case dRespRcvd:
+            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.gx[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.gx[i].cnt[REJ], allocator);
+            break;
+
+        case dBoth:
+            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.gx[i].cnt[ACC], allocator);
+            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.gx[i].cnt[REJ], allocator);
+            break;
+
+        case dNone:
+            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.gx[i].cnt[BOTH], allocator);
+            break;
+        }
+
+    if((peer->stats.gx[i].ts != NULL) && (strlen(peer->stats.gx[i].ts) != 0))
+               value.AddMember(statsrapidjson::StringRef("last"), statsrapidjson::StringRef(peer->stats.gx[i].ts), allocator);
+        arrayObjects.PushBack(value, allocator);
+    }
+}
+
 
 void CStatMessages::serializeSystem(const cli_node_t *cli_node,
     statsrapidjson::Value& row,
@@ -509,6 +369,7 @@ void CStatMessages::serialize(const SPeer* peer,
         serializeS11(peer, row, arrayObjects, allocator);
         break;
     case itS5S8:
+		if (cli_node_ptr->gw_type == OSS_SGWC || cli_node_ptr->gw_type == OSS_PGWC || cli_node_ptr->gw_type == SAEGWC)
         serializeS5S8(peer, row, arrayObjects, allocator);
         break;
     case itSxa:
@@ -521,7 +382,7 @@ void CStatMessages::serialize(const SPeer* peer,
     	serializeSxaSxb(peer, row, arrayObjects, allocator);
         break;
     case itGx:
-        cout << "CStatMessages Gx detected " << endl;
+	serializeGx(peer, row, arrayObjects, allocator);
         break;
     }
 }
@@ -541,12 +402,12 @@ void CStatHealth::serialize(const SPeer* peer,
     row.AddMember(statsrapidjson::StringRef("maxtimeouts"), peer->maxtimeout, allocator);
     row.AddMember(statsrapidjson::StringRef("timeouts"), peer->timeouts, allocator);
 
-    reqValue.AddMember(statsrapidjson::StringRef("sent"), peer->hcrequest[0], allocator);
-    reqValue.AddMember(statsrapidjson::StringRef("received"), peer->hcrequest[1], allocator);
+    reqValue.AddMember(statsrapidjson::StringRef("sent"), peer->hcrequest[SENT], allocator);
+    reqValue.AddMember(statsrapidjson::StringRef("received"), peer->hcrequest[RCVD], allocator);
     row.AddMember(statsrapidjson::StringRef("requests"), reqValue, allocator);
 
-    respValue.AddMember(statsrapidjson::StringRef("sent"), peer->hcresponse[0], allocator);
-    respValue.AddMember(statsrapidjson::StringRef("received"), peer->hcresponse[1], allocator);
+    respValue.AddMember(statsrapidjson::StringRef("sent"), peer->hcresponse[SENT], allocator);
+    respValue.AddMember(statsrapidjson::StringRef("received"), peer->hcresponse[RCVD], allocator);
     row.AddMember(statsrapidjson::StringRef("responses"), respValue, allocator);
 }
 
@@ -558,19 +419,20 @@ void CStatPeers::serialize(const SPeer* peer,
     statsrapidjson::Value ipv4Value(statsrapidjson::kObjectType);
     ipv4Value.AddMember(statsrapidjson::StringRef("ipv4"), statsrapidjson::Value(inet_ntoa(peer->ipaddr), allocator).Move(), allocator);
     row.AddMember(statsrapidjson::StringRef("address"), ipv4Value, allocator);
-    if(peer->status)
-       	row.AddMember(statsrapidjson::StringRef("active"), statsrapidjson::StringRef("true"), allocator);
-    else
-	row.AddMember(statsrapidjson::StringRef("active"), statsrapidjson::StringRef("false"), allocator);
 
+    	if(peer->status)
+       		row.AddMember(statsrapidjson::StringRef("active"), statsrapidjson::StringRef("true"), allocator);
+    	else
+		row.AddMember(statsrapidjson::StringRef("active"), statsrapidjson::StringRef("false"), allocator);
 	if(peer->lastactivity != NULL)
 		row.AddMember(
         statsrapidjson::StringRef("lastactivity"), statsrapidjson::StringRef(peer->lastactivity), allocator);
 
-    statsrapidjson::Value rowHealth(statsrapidjson::kObjectType);
-    CStatHealth health(suppress);
-    health.serialize(peer, rowHealth, arrayObjects, allocator);
-    row.AddMember(statsrapidjson::Value(health.getNodeName().c_str(), allocator).Move(), rowHealth, allocator);
+    	statsrapidjson::Value rowHealth(statsrapidjson::kObjectType);
+    	CStatHealth health(suppress);
+    	health.serialize(peer, rowHealth, arrayObjects, allocator);
+    	row.AddMember(statsrapidjson::Value(health.getNodeName().c_str(), allocator).Move(), rowHealth, allocator);
+
     statsrapidjson::Value msgValues(statsrapidjson::kArrayType);
     CStatMessages msg(suppress);
     msg.serialize(peer, row, msgValues, allocator);
@@ -614,23 +476,44 @@ void CStatInterfaces::serialize(cli_node_t *cli_node,
     statsrapidjson::Value& arrayObjects,
     statsrapidjson::Document::AllocatorType& allocator)
 {
-    switch(cli_node->cp_type) {
+    switch(cli_node->gw_type) {
 
-    case SGWC:
-            serializeInterface(cli_node,row,arrayObjects,allocator,itS11);
-            serializeInterface(cli_node,row,arrayObjects,allocator,itS5S8);
-            serializeInterface(cli_node,row,arrayObjects,allocator,itSxa);
+    case OSS_SGWC:
+        serializeInterface(cli_node,row,arrayObjects,allocator,itS11);
+        serializeInterface(cli_node,row,arrayObjects,allocator,itS5S8);
+        serializeInterface(cli_node,row,arrayObjects,allocator,itSxa);
         break;
 
-    case PGWC:
-            serializeInterface(cli_node,row,arrayObjects,allocator,itS5S8);
-            serializeInterface(cli_node,row,arrayObjects,allocator,itSxb);
+    case OSS_PGWC:
+        serializeInterface(cli_node,row,arrayObjects,allocator,itS5S8);
+        serializeInterface(cli_node,row,arrayObjects,allocator,itSxb);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itGx);
         break;
 
-    case SAEGWC:
-            serializeInterface(cli_node,row,arrayObjects,allocator,itS11);
-            serializeInterface(cli_node,row,arrayObjects,allocator,itSxaSxb);
+    case OSS_SAEGWC:
+        serializeInterface(cli_node,row,arrayObjects,allocator,itS11);
+        serializeInterface(cli_node,row,arrayObjects,allocator,itSxaSxb);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itGx);
         break;
+
+    case OSS_SGWU:
+	serializeInterface(cli_node,row,arrayObjects,allocator,itSxa);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itS5S8);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itS1U);
+	break;
+
+    case OSS_PGWU:
+	serializeInterface(cli_node,row,arrayObjects,allocator,itSxb);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itS5S8);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itSGI);
+	break;
+
+    case OSS_SAEGWU:
+	serializeInterface(cli_node,row,arrayObjects,allocator,itSxaSxb);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itS1U);
+	serializeInterface(cli_node,row,arrayObjects,allocator,itSGI);
+	break;
+
     }
 }
 
@@ -640,10 +523,10 @@ void CStatGateway::serialize(cli_node_t *cli_node,
     statsrapidjson::Document::AllocatorType& allocator)
 {
     STime now = STime::Now();
-	initInterfaceDirection( static_cast<cp_config>(cli_node->cp_type));
+	initInterfaceDirection( static_cast<cp_config>(cli_node->gw_type));
     statsrapidjson::Value valArray(statsrapidjson::kArrayType);
 
-    row.AddMember("nodename", statsrapidjson::StringRef(ossGatewayStr[cli_node->cp_type]), allocator);
+    row.AddMember("nodename", statsrapidjson::StringRef(ossGatewayStr[cli_node->gw_type]), allocator);
     now.Format(reportTimeStr, "%Y-%m-%dT%H:%M:%S.%0", false);
     row.AddMember("reporttime", statsrapidjson::StringRef( reportTimeStr.c_str()  ), allocator);
     row.AddMember("upsecs", *(cli_node->upsecs), allocator);
@@ -651,41 +534,42 @@ void CStatGateway::serialize(cli_node_t *cli_node,
     interfaces.serialize(cli_node, row, valArray, allocator);
     row.AddMember(statsrapidjson::Value(interfaces.getNodeName().c_str(), allocator).Move(), valArray, allocator);
 
-	statsrapidjson::Value sessionValue(statsrapidjson::kObjectType);
-	CStatSession session(suppress);
+    statsrapidjson::Value sessionValue(statsrapidjson::kObjectType);
+    CStatSession session(suppress);
     session.serialize(cli_node, sessionValue, arrayObjects, allocator);
     row.AddMember(statsrapidjson::Value(session.getNodeName().c_str(), allocator).Move(), sessionValue, allocator);
 
-    statsrapidjson::Value systemValue(statsrapidjson::kObjectType);
-    CStatSystem system(suppress);
-    system.serialize(cli_node, systemValue, arrayObjects, allocator);
-    row.AddMember(statsrapidjson::Value(system.getNodeName().c_str(), allocator).Move(), systemValue, allocator);
+
+    	statsrapidjson::Value systemValue(statsrapidjson::kObjectType);
+    	CStatSystem system(suppress);
+    	system.serialize(cli_node, systemValue, arrayObjects, allocator);
+    	row.AddMember(statsrapidjson::Value(system.getNodeName().c_str(), allocator).Move(), systemValue, allocator);
 }
 
 void CStatGateway::initInterfaceDirection(cp_config gatway)
 {
     switch(gatway) {
 
-    case SGWC:
+    case OSS_SGWC:
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_SESSION_REQ]].dir = dOut;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_SESSION_RSP]].dir = dRespRcvd;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_DELETE_SESSION_REQ]].dir = dOut;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_DELETE_SESSION_RSP]].dir = dRespRcvd;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_MODIFY_BEARER_REQ]].dir = dOut;
-		ossS5s8MessageDefs[s5s8MessageTypes[GTP_MODIFY_BEARER_RSP]].dir = dRespRcvd;
-		ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_REQ]].dir = dIn;
-		ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_RSP]].dir = dOut;
+	ossS5s8MessageDefs[s5s8MessageTypes[GTP_MODIFY_BEARER_RSP]].dir = dRespRcvd;
+	ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_REQ]].dir = dIn;
+	ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_RSP]].dir = dRespSend;
         break;
 
-    case PGWC:
+    case OSS_PGWC:
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_SESSION_REQ]].dir = dIn;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_SESSION_RSP]].dir = dRespSend;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_DELETE_SESSION_REQ]].dir = dIn;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_DELETE_SESSION_RSP]].dir = dRespSend;
         ossS5s8MessageDefs[s5s8MessageTypes[GTP_MODIFY_BEARER_REQ]].dir = dIn;
-		ossS5s8MessageDefs[s5s8MessageTypes[GTP_MODIFY_BEARER_RSP]].dir = dRespSend;
-		ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_REQ]].dir = dOut;
-		ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_RSP]].dir = dIn;
+	ossS5s8MessageDefs[s5s8MessageTypes[GTP_MODIFY_BEARER_RSP]].dir = dRespSend;
+	ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_REQ]].dir = dOut;
+	ossS5s8MessageDefs[s5s8MessageTypes[GTP_CREATE_BEARER_RSP]].dir = dRespRcvd;
         break;
     }
 }
