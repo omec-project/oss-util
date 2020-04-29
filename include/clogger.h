@@ -1,3 +1,20 @@
+/*
+ * Copyright (c) 2019 Sprint
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 #ifndef __CLOGGER_H
 #define __CLOGGER_H
 
@@ -27,17 +44,21 @@ enum CLoggerSeverity {
         eCLSeverityCritical
 };
 
+enum log_level
+{
+	activate_log_level = 1,
+};
 extern int clSystemLog;
 extern int optStatMaxSize;
 
 
 void clSetOption(enum CLoggerOptions opt, const char *val);
 
-void clInit(const char *app);
+void clInit(const char *app, uint8_t cp_logger);
 void clStart(void);
 void clStop(void);
 
-int clAddLogger(const char *logname);
+int clAddLogger(const char *logname, uint8_t cp_logger);
 char *clGetLoggers(void);
 int clUpdateLogger(const char *json, char **response);
 

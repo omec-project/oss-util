@@ -37,7 +37,7 @@ namespace CachedDNS
 
    /////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////
-   
+
    class QueryProcessorThread : public SThread
    {
       friend QueryProcessor;
@@ -113,7 +113,7 @@ namespace CachedDNS
       Cache &m_cache;
       QueryProcessorThread m_qpt;
       ares_channel m_channel;
-      std::map<const char *,NamedServer> m_servers;
+      std::map<std::string ,NamedServer> m_servers;
       SMutex m_mutex;
    };
 
@@ -192,6 +192,12 @@ namespace CachedDNS
       static long getRefeshInterval() { return m_interval; }
       static long setRefreshInterval(long interval) { return m_interval = interval; }
 
+      static int getQueryTimeoutMS() { return m_querytimeout; }
+      static int setQueryTimeoutMS(int timeout) { return m_querytimeout = timeout; }
+
+      static int getQueryTries() { return m_querytries; }
+      static int setQueryTries(int tries) { return m_querytries = tries; }
+
       void addNamedServer(const char *address, int udp_port=53, int tcp_port=53);
       void removeNamedServer(const char *address);
       void applyNamedServers();
@@ -224,6 +230,8 @@ namespace CachedDNS
       static unsigned int m_concur;
       static int m_percent;
       static long m_interval;
+      static int m_querytimeout;
+      static int m_querytries;
 
       QueryProcessor m_qp;
       CacheRefresher m_refresher;

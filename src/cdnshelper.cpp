@@ -27,6 +27,12 @@ void set_dnscache_refresh_params(unsigned int concurrent, int percent,
 	CachedDNS::Cache::setRefreshInterval(interval);
 }
 
+void set_dns_retry_params(long timeout, unsigned int retries)
+{
+	CachedDNS::Cache::setQueryTimeoutMS(timeout);
+	CachedDNS::Cache::setQueryTries(retries);
+}
+
 void set_nameserver_config(const char *address, int udp_port, int tcp_port,
 		nameserver_type_id ns_type)
 {
