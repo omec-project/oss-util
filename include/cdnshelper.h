@@ -86,6 +86,8 @@ int get_colocated_candlist(void *node_obj1,	void *node_obj2,
 int get_colocated_candlist_fqdn(char *sgwu_fqdn, void *node_obj2,
 		canonical_result_t *result);
 
+void set_dns_retry_params(long timeout, unsigned int retries);
+
 #ifdef __cplusplus
 }
 #endif
