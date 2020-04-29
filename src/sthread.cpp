@@ -157,8 +157,7 @@ void SThread::sleep(int milliseconds)
    tmReq.tv_sec = (time_t)(milliseconds / 1000);
    tmReq.tv_nsec = (milliseconds % 1000) * 1000 * 1000;
 
-   // we're not interested in remaining time nor in return value
-   (void)nanosleep(&tmReq, (timespec*)NULL);
+   while ( nanosleep(&tmReq,&tmReq) == -1 && errno == EINTR );
 }
 
 void SThread::yield()
@@ -354,7 +353,7 @@ void SEventThread::Timer::init(SEventThread* pThread)
 
    struct sigevent sev;
    sev.sigev_notify = SIGEV_SIGNAL;
-   sev.sigev_signo = SIGRTMIN;
+   sev.sigev_signo = SIGRTMIN + 1;
    sev.sigev_value.sival_ptr = this;
    if (timer_create(CLOCK_REALTIME, &sev, &m_timer) == -1)
       SError::throwRuntimeExceptionWithErrno( "Unable to initialize timer" );
@@ -420,7 +419,7 @@ void SEventThread::TimerHandler::init()
    sa.sa_flags = SA_SIGINFO;
    sa.sa_sigaction = SEventThread::Timer::_timerHandler;
    sigemptyset(&sa.sa_mask);
-   int signo = SIGRTMIN;
+   int signo = SIGRTMIN + 1;
    if (sigaction(signo, &sa, NULL) == -1)
       SError::throwRuntimeExceptionWithErrno( "Unable to register timer handler" );
 }

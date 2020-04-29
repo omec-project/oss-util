@@ -428,7 +428,7 @@ while [ "$QUIT" == "0" ]; do
     echo ""
   done
   
-  echo "[$OPTION_NUM] Exit Script"
+  echo "[$OPTION_NUM] Exit & go back to ngic-rtc installation"
   OPTIONS[$OPTION_NUM]="quit"
   echo ""
   echo -n "Option: "
@@ -443,6 +443,7 @@ while [ "$QUIT" == "0" ]; do
     continue
     exit
   fi
-  echo "Installation complete. Please refer to README.md for more information"
+  #echo "Installation complete. Please refer to README.md for more information"
+  echo "Installation complete."
 done
 

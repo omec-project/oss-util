@@ -1,6 +1,8 @@
 import click
 import requests
-
+from collections import OrderedDict
+import json
+import copy
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -49,7 +51,20 @@ def set_stats_frequency(ctx, freq):
 def describe_stats_live(ctx):
     url = ctx.obj['C3PO_URL'] + "/statlive"
     r = requests.get(url)
-    click.echo(r.json())
+    res = r.json()
+    new_res = copy.deepcopy(res)
+    
+    for interface in range(len(res['interfaces'])):
+        for peers in range(len(res['interfaces'][interface]['peers'])):
+            n1 = []
+            for message in range(len(res['interfaces'][interface]['peers'][peers]['messages'])):
+                if res['interfaces'][interface]['peers'][peers]['messages'][message]['count'] == 0:
+                    del_msg = res['interfaces'][interface]['peers'][peers]['messages'][message]
+                    n1.append(del_msg)
+            for del_item in n1:
+                res['interfaces'][interface]['peers'][peers]['messages'].remove(del_item)
+    click.echo(json.dumps(res))
+
 
 @click.command()
 @click.pass_context
