@@ -19,7 +19,8 @@ LIBS := \
  /usr/local/lib/libpistache.a
 
 
-INC := -I include \
+INC := -I ../ \
+ -I include \
  -I ./modules/rapidjson/include \
  -I ./modules/freeDiameter/include \
  -I ./modules/c-ares \

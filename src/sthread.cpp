@@ -416,7 +416,7 @@ void SEventThread::TimerHandler::init()
 {
 //std::cout << "SEventThread::TimerHandler::init()" << std::endl;
    struct sigaction sa;
-   sa.sa_flags = SA_SIGINFO;
+   sa.sa_flags = SA_SIGINFO | SA_RESTART;
    sa.sa_sigaction = SEventThread::Timer::_timerHandler;
    sigemptyset(&sa.sa_mask);
    int signo = SIGRTMIN + 1;
