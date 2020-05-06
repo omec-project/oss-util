@@ -10,9 +10,6 @@
 [submodule "modules/spdlog"]
 	path = modules/spdlog
 	url = https://github.com/gabime/spdlog.git
-[submodule "modules/freeDiameter"]
-	path = modules/freeDiameter
-	url = https://nilesh@ilpm.intel-research.net/bitbucket/scm/vccbbw/freediameter.git
 [submodule "modules/pistache"]
 	path = modules/pistache
 	url = https://github.com/oktal/pistache.git

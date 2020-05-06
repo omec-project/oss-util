@@ -17,6 +17,7 @@
 #include <errno.h>
 
 #include "ssync.h"
+#include "satomic.h"
 #include "serror.h"
 
 #include <poll.h>
@@ -114,6 +115,11 @@ SSemaphore::~SSemaphore()
     destroy();
 }
 
+int SSemaphore::getCurrentCount()
+{
+   return atomic_fetch(mCurrCount);
+}
+
 void SSemaphore::init(unsigned int lInitialCount, unsigned int lMaxCount, const char *pszName)
 {
     if (mInitialized)
@@ -128,11 +134,8 @@ void SSemaphore::init(unsigned int lInitialCount, unsigned int lMaxCount, const 
 
     int res;
 
-    if (sem_init(&mSem, (pszName != NULL) ? 1 : 0, lMaxCount) != 0)
+    if (sem_init(&mSem, (pszName != NULL) ? 1 : 0, lInitialCount) != 0)
         SError::throwRuntimeExceptionWithErrno("Error initializing semaphore");
-
-    for (int i = lMaxCount; i > lInitialCount; i--)
-        sem_wait(&mSem);
 
     mInitialized = true;
 }
@@ -183,7 +186,10 @@ bool SSemaphore::decrement(bool wait)
 
 bool SSemaphore::increment()
 {
-    if (sem_post(&mSem) != 0)
+   int status = sem_post(&mSem);
+   int e = errno;
+
+    if (status != 0)
         SError::throwRuntimeExceptionWithErrno("Error incrementing semaphore");
 
     return true;
@@ -193,6 +199,7 @@ bool SSemaphore::increment()
 ////////////////////////////////////////////////////////////////////////////////
 
 SEvent::SEvent( bool state )
+   : m_buf()
 {
    m_pipefd[0] = -1;
    m_pipefd[1] = -1;
@@ -259,4 +266,74 @@ void SEvent::closepipe()
       close( m_pipefd[1] );
       m_pipefd[1] = -1;
    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+SRwLock::SRwLock()
+{
+   int status;
+   pthread_rwlockattr_t attr;
+
+   status = pthread_rwlockattr_init(&attr);
+   if (status != 0)
+      SError::throwRuntimeExceptionWithErrno( "pthread_rwlockattr_init() failed", status );
+
+   // set any applicable attributes
+
+   status = pthread_rwlock_init( &m_rwlock, &attr );
+
+   pthread_rwlockattr_destroy( &attr );
+
+   if (status != 0)
+      SError::throwRuntimeExceptionWithErrno( "pthread_rwlock_init() failed", status );
+}
+
+SRwLock::~SRwLock()
+{
+   pthread_rwlock_destroy( &m_rwlock );
+}
+
+bool SRwLock::enter( ReadWrite rw, bool wait )
+{
+   int status;
+
+   if ( wait )
+   {
+      if (rw == SRwLock::Read)
+         status = pthread_rwlock_rdlock( &m_rwlock );
+      else
+         status = pthread_rwlock_wrlock( &m_rwlock );
+   }
+   else
+   {
+      if (rw == SRwLock::Read)
+         status = pthread_rwlock_tryrdlock( &m_rwlock );
+      else
+         status = pthread_rwlock_trywrlock( &m_rwlock );
+   }
+
+   return status == 0;
+}
+
+//bool SRwLock::enter( ReadWrite rw, long ms )
+//{
+//   int status;
+//
+//   struct timespec ts;
+//   ts.tv_sec = ms / 1000;
+//   ts.tv_nsec = (ms % 1000) * 1000000;
+//
+//   if (rw == SRwLock::Read)
+//      status = pthread_rwlock_timedrdlock( &m_rwlock, &ts );
+//   else
+//      status = pthread_rwlock_timedwrlock( &m_rwlock, &ts );
+//
+//   return status == 0;
+//}
+
+void SRwLock::leave()
+{
+   pthread_rwlock_unlock( &m_rwlock );
 }

@@ -1,6 +1,8 @@
 import click
 import requests
-
+from collections import OrderedDict
+import json
+import copy
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -49,13 +51,39 @@ def set_stats_frequency(ctx, freq):
 def describe_stats_live(ctx):
     url = ctx.obj['C3PO_URL'] + "/statlive"
     r = requests.get(url)
-    click.echo(r.json())
+    res = r.json()
+    new_res = copy.deepcopy(res)
+    click.echo(json.dumps(res))
+
+@click.command()
+@click.pass_context
+def describe_stats_all(ctx):
+    url = ctx.obj['C3PO_URL'] + "/statliveall"
+    r = requests.get(url)
+    res = r.json()
+    new_res = copy.deepcopy(res)
+    click.echo(json.dumps(res))
 
 @click.command()
 @click.pass_context
 def describe_loggers(ctx):
     url = ctx.obj['C3PO_URL'] + "/logger"
     r = requests.get(url)
+    click.echo(r.json())
+
+@click.command()
+@click.pass_context
+def describe_stats_logging(ctx):
+    url = ctx.obj['C3PO_URL'] + "/statlogging"
+    r = requests.get(url)
+    click.echo(r.json())
+
+@click.command()
+@click.pass_context
+@click.option('--name', '-n', required=True, help='Enter stat logging name suppress or all')
+def set_stats_logging(ctx, name):
+    url = ctx.obj['C3PO_URL'] + "/statlogging"
+    r = requests.post(url, json={"statlog": name })
     click.echo(r.json())
 
 @click.command()
@@ -84,6 +112,10 @@ admin.add_command(describe_oss_options)
 stats.add_command(describe_stats_frequency)
 stats.add_command(set_stats_frequency)
 stats.add_command(describe_stats_live)
+stats.add_command(describe_stats_all)
+stats.add_command(describe_stats_logging)
+stats.add_command(set_stats_logging)
 
 logger.add_command(describe_loggers)
 logger.add_command(set_logger_level)
+

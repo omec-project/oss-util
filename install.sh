@@ -257,7 +257,6 @@ init_submodules()
   git submodule init
   git submodule update
 
-  build_freeDiameter
   build_c_ares
   build_cpp_driver
   build_pistache
@@ -268,21 +267,6 @@ init_submodules()
   sudo ldconfig
     
   INIT_SUBMODULES_COMPLETE="- COMPLETE"
-}
-
-build_freeDiameter()
-{
-  pushd modules/freeDiameter
-  rm -rf build
-  mkdir -p build
-  cd build
-  cmake ..
-  awk '{if (/^DISABLE_SCTP/) gsub(/OFF/, "ON"); print}' CMakeCache.txt > tmp && mv tmp CMakeCache.txt
-  make
-  sudo make install
-  popd
-  
-  BUILD_FREEDIAMETER_COMPLETE="- COMPLETE"
 }
 
 build_c_ares()
@@ -428,7 +412,7 @@ while [ "$QUIT" == "0" ]; do
     echo ""
   done
   
-  echo "[$OPTION_NUM] Exit Script"
+  echo "[$OPTION_NUM] Exit & go back to ngic-rtc installation"
   OPTIONS[$OPTION_NUM]="quit"
   echo ""
   echo -n "Option: "
@@ -443,6 +427,7 @@ while [ "$QUIT" == "0" ]; do
     continue
     exit
   fi
-  echo "Installation complete. Please refer to README.md for more information"
+  #echo "Installation complete. Please refer to README.md for more information"
+  echo "Installation complete."
 done
 

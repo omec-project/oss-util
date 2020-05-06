@@ -5,16 +5,17 @@
 extern "C" {
 #endif
 
-typedef int64_t (*CStatsGetter)(int categoryid, int valueid);
-
-void csInit(void *logger, CStatsGetter getter, int maxvalues, long interval);
+void csInit(void *logger, long interval);
 void csStart(void);
 void csStop(void);
-int csAddCategory(const char *name);
-int csAddValue(int categoryid, const char *name);
 int csGetInterval(char **response);
+int csGetStatLogging(char **response);
+int csUpdateStatLogging(const char *json, char **response);
 int csUpdateInterval(const char *json, char **response);
 int csGetLive(char **response);
+int csGetLiveAll(char **response);
+void get_current_file_size(size_t len);
+void cli_init(cli_node_t *cli_node, int *cnt_peer);
 
 #ifdef __cplusplus
 }

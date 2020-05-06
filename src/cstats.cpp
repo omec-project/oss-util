@@ -6,88 +6,40 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <time.h>
+#include <netinet/ip.h>
 
 #include "sthread.h"
 #include "slogger.h"
 #include "stime.h"
+#include "cp_adapter.h"
 #include "cstats.h"
+#include "clogger.h"
+
+#include <sys/stat.h>
 
 #define RAPIDJSON_NAMESPACE statsrapidjson
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
-class CStatValue
-{
-public:
-	CStatValue(const char *name, int id)
-		: m_name(name), m_id(id), m_value(0)
-	{
-	}
+#include "cstats_dev.hpp"
 
-	const std::string &getName() { return m_name; }
-	int getId()			{ return m_id; }
+extern cli_node_t *cli_node_ptr;
+extern int *oss_cnt_peer;
 
-	int64_t setValue(int64_t v)	{ return m_value = v; }
-	int64_t getValue()		{ return m_value; }
-
-private:
-	CStatValue();
-
-	std::string m_name;
-	int m_id;
-	int64_t m_value;
-};
-
-class CStatCategory
-{
-public:
-	CStatCategory(const char *name, int id)
-		: m_name(name), m_id(id)
-	{
-	}
-
-	~CStatCategory()
-	{
-		while (!m_values.empty())
-		{
-			CStatValue *v = m_values.back();
-			m_values.pop_back();
-			delete v;
-		}
-	}
-
-	const std::string &getName()	{ return m_name; }
-	int getId()			{ return m_id; }
-
-	int addValue(const char *name)
-	{
-		CStatValue *v = new CStatValue(name, m_values.size());
-		m_values.push_back(v);
-		return v->getId();
-	}
-
-	std::vector<CStatValue*> &getValues() { return m_values; }
-
-	void serialize(statsrapidjson::Value &arrayObjects, statsrapidjson::Document::AllocatorType &allocator);
-	void serialize(std::stringstream &ss);
-
-private:
-	std::string m_name;
-	int m_id;
-	std::vector<CStatValue*> m_values;
-};
+long oss_resetsec;
 
 const uint16_t CSTAT_UPDATE_INTERVAL = ETM_USER + 1;
 const uint16_t CSTAT_GENERATE_CSV = ETM_USER + 2;
 
 class CStatsUpdateInterval : public SEventThreadMessage
 {
-public:
-	CStatsUpdateInterval(long interval)
-		: SEventThreadMessage(CSTAT_UPDATE_INTERVAL), m_interval(interval)
-	{
-	}
+	public:
+		CStatsUpdateInterval(long interval)
+			: SEventThreadMessage(CSTAT_UPDATE_INTERVAL), m_interval(interval)
+		{
+		}
 
 	long getInterval() { return m_interval; }
 
@@ -131,41 +83,28 @@ public:
 
 	void setLogger(SLogger *logger)			{ m_logger = logger; }
 
-	void setStatGetter(CStatsGetter getstat)	{ m_getstat = getstat; }
+    	void setStatLoggingSuppress(bool suppress)      { statLoggingSuppress = suppress;}
+    	bool getStatLoggingSuppress()                   { return statLoggingSuppress;}
+	void serializeJSON(std::string &json,bool suppressed);
 
-	int getMaxValues()				{ return m_maxvalues; }
-	int setMaxValues(int v)				{ return m_maxvalues = v; }
-
-	void getCurrentStats();
-
-	int addCategory(const char *name);
-	int addValue(int categoryid, const char *name);
-
-	void serializeJSON(std::string &json);
-	void serializeCSV();
-
-	void dump();
 private:
 	static CStats *m_singleton;
 
-	
 	long m_interval;
 	SLogger *m_logger;
-	CStatsGetter m_getstat;
-	int m_maxvalues;
-	std::vector<CStatCategory*> m_categories;
 	SEventThread::Timer m_timer;
+    	bool statLoggingSuppress;
 };
 
+int len = 0;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void csInit(void *logger, CStatsGetter getter, int maxvalues, long interval)
+void csInit(void *logger, long interval)
 {
 	CStats::singleton().setLogger((SLogger*)logger);
-	CStats::singleton().setStatGetter(getter);
-	CStats::singleton().setMaxValues(maxvalues);
 	CStats::singleton().setInterval(interval);
+    	CStats::singleton().setStatLoggingSuppress(true);
 }
 
 void csStart(void)
@@ -179,22 +118,60 @@ void csStop(void)
 	CStats::singleton().join();
 }
 
-int csAddCategory(const char *name)
-{
-	return CStats::singleton().addCategory(name);
-}
-
-int csAddValue(int categoryid, const char *name)
-{
-	return CStats::singleton().addValue(categoryid, name);
-}
-
 int csGetInterval(char **response)
 {
 	std::string res = "{\"statfreq\": " + std::to_string(CStats::singleton().getInterval()) + "}";
 	*response = strdup(res.c_str());
 	return 200;
 }
+
+
+int csGetStatLogging(char **response)
+{
+    std::string res;
+    if(CStats::singleton().getStatLoggingSuppress())
+        res = "{\"statlog\": \"suppress\"}";
+    else
+        res = "{\"statlog\": \"all\"}";
+	*response = strdup(res.c_str());
+	return 200;
+}
+
+int csUpdateStatLogging(const char *json, char **response)
+{
+	statsrapidjson::Document doc;
+	doc.Parse(json);
+	if(doc.HasParseError())
+	{
+		if (response)
+			*response = strdup("{\"result\": \"ERROR\"}");
+		return 400;
+	}
+	if(!doc.HasMember("statlog") || !doc["statlog"].IsString())
+	{
+		if (response)
+			*response = strdup("{\"result\": \"ERROR\"}");
+		return 400;
+	}
+
+    string StatLoggingStr = doc["statlog"].GetString();
+
+    if(StatLoggingStr == "suppress")
+        CStats::singleton().setStatLoggingSuppress(true);
+    else if(StatLoggingStr == "all")
+        CStats::singleton().setStatLoggingSuppress(false);
+    else{
+            if (response)
+			*response = strdup("{\"result\": \"ERROR\"}");
+            return 400;
+    }
+
+	if (response)
+		*response = strdup("{\"result\": \"OK\"}");
+
+	return 200;
+}
+
 
 int csUpdateInterval(const char *json, char **response)
 {
@@ -225,10 +202,21 @@ int csUpdateInterval(const char *json, char **response)
 int csGetLive(char **response)
 {
 	std::string live;
-	CStats::singleton().serializeJSON(live);
+    get_current_file_size(len);
+	CStats::singleton().serializeJSON(live,true);
 	*response = strdup(live.c_str());
 	return 200;
 }
+
+int csGetLiveAll(char **response)
+{
+       std::string live;
+	   get_current_file_size(len);
+       CStats::singleton().serializeJSON(live,false);
+       *response = strdup(live.c_str());
+       return 200;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -236,7 +224,7 @@ int csGetLive(char **response)
 CStats *CStats::m_singleton = NULL;
 
 CStats::CStats()
-	: m_logger(NULL), m_getstat(NULL), m_maxvalues(0)
+	: m_logger(NULL)
 {
 }
 
@@ -275,134 +263,84 @@ void CStats::dispatch(SEventThreadMessage &msg)
 		}
 		case CSTAT_GENERATE_CSV:
 		{
-			getCurrentStats();
-			serializeCSV();
-	
-			//std::string json;
-			//serializeJSON(json);
+			std::string json;
+			get_current_file_size(len);
+			serializeJSON(json,statLoggingSuppress);
+			len=strlen(json.c_str());
+            get_current_file_size(len);
+            m_logger->info(json);                    //after 5 sec write
+            m_logger->flush();                       //to the file
 			break;
 		}
 	}
-}
-
-int CStats::addCategory(const char *name)
-{
-	CStatCategory *c = new CStatCategory(name, m_categories.size());
-	m_categories.push_back(c);
-	return c->getId();
-}
-
-int CStats::addValue(int categoryid, const char *name)
-{
-	if (categoryid < 0 && categoryid >= m_categories.size())
-		return -1;
-
-	return m_categories[categoryid]->addValue(name);
 }
 
 void CStats::updateInterval(long interval)
 {
 	CStatsUpdateInterval *e = new CStatsUpdateInterval(interval);
 	postMessage(e);
-} 
-
-void CStats::getCurrentStats()
-{
-	if (!m_getstat)
-		return;
-
-	for (auto cit = m_categories.begin(); cit != m_categories.end(); ++cit)
-	{
-		for (auto vit = (*cit)->getValues().begin(); vit != (*cit)->getValues().end(); ++vit)
-		{
-			(*vit)->setValue( (*m_getstat)((*cit)->getId(), (*vit)->getId()) );
-		}
-	}
 }
 
-void CStats::serializeJSON(std::string &json)
+void CStats::serializeJSON(std::string &json,bool suppressed=true)
 {
-	STime now = STime::Now();
-	std::string nowstr;
-	statsrapidjson::Document document;
-	document.SetObject();
-	statsrapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+    string data;
+    statsrapidjson::Document document;
+    document.SetObject();
+    statsrapidjson::Document::AllocatorType& allocator = document.GetAllocator();
+    statsrapidjson::Value valArray(statsrapidjson::kArrayType);
 
-        now.Format(nowstr, "%Y-%m-%dT%H:%M:%S.%0", false);
-        document.AddMember("time_utc", statsrapidjson::StringRef(nowstr.c_str()), allocator);
+    CStatGateway gateway(suppressed);
+    gateway.serialize(cli_node_ptr, document, valArray, allocator);
 
-	statsrapidjson::Value arrayValues(statsrapidjson::kArrayType);
-
-	for (auto cit = m_categories.begin(); cit != m_categories.end(); ++cit)
-	{
-		(*cit)->serialize(arrayValues, allocator);
-	}
-
-	document.AddMember("statistics", arrayValues, allocator);
-
-	statsrapidjson::StringBuffer strbuf;
-	statsrapidjson::Writer<statsrapidjson::StringBuffer> writer(strbuf);
-	document.Accept(writer);
-
-	json = strbuf.GetString();
+    statsrapidjson::StringBuffer strbuf;
+    statsrapidjson::Writer<statsrapidjson::StringBuffer> writer(strbuf);
+    document.Accept(writer);
+    json = strbuf.GetString();
 }
 
-void CStats::serializeCSV()
+//////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef long long int _timer_t;
+
+#define TIMER_GET_CURRENT_TP(now)                                             \
+({                                                                            \
+ struct timespec ts;                                                          \
+ now = clock_gettime(CLOCK_REALTIME,&ts) ?                                    \
+    -1 : (((_timer_t)ts.tv_sec) * 1000000000) + ((_timer_t)ts.tv_nsec);   \
+ now;                                                                         \
+ })
+
+#define TIMER_GET_ELAPSED_NS(start)                                           \
+({                                                                            \
+ _timer_t ns;                                                                 \
+ TIMER_GET_CURRENT_TP(ns);                                                    \
+ if (ns != -1){                                                               \
+    ns -= start;                                                          \
+ }                                        \
+ ns;                                                                          \
+ })
+
+
+extern _timer_t st_time;
+
+void
+get_current_file_size(size_t len)
 {
-	std::stringstream ss;
-	STime now = STime::Now();
-	std::string nowstr;
-	std::string str;
 
-        now.Format(nowstr, "%Y-%m-%dT%H:%M:%S.%0", false);
+	struct stat st;
+	stat("logs/cp_stat.log",&st);
+	size_t size = st.st_size;
+	size_t max_size = optStatMaxSize * 1024 * 1024 ;
+	static int flag=0;
+	static _timer_t reset_time = 0;
+	_timer_t cp_stats_reset_time;
 
-	for (auto cit = m_categories.begin(); cit != m_categories.end(); ++cit)
+	if( len > (max_size-size) )         //reset log will be take place
 	{
-		ss.str("");
-		ss << "\"" << nowstr << "\",\"" << (*cit)->getName() << "\"";
-		(*cit)->serialize(ss);
-		m_logger->info(ss.str());
+		reset_time = *(cli_node_ptr->upsecs);
 	}
-
-	m_logger->flush();
+	cp_stats_reset_time = *(cli_node_ptr->upsecs) - reset_time;
+	oss_resetsec = cp_stats_reset_time;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void CStatCategory::serialize(statsrapidjson::Value &arrayValues, statsrapidjson::Document::AllocatorType &allocator)
-{
-	STime now = STime::Now();
-	std::string nowstr;
-	statsrapidjson::Value row(statsrapidjson::kObjectType);
-	statsrapidjson::Value values(statsrapidjson::kArrayType);
-
-	row.AddMember(statsrapidjson::StringRef("category"), statsrapidjson::StringRef(getName().c_str()), allocator);
-
-	for (auto vit = getValues().begin(); vit != getValues().end(); ++vit)
-	{
-		statsrapidjson::Value value(statsrapidjson::kObjectType);
-		value.AddMember(statsrapidjson::StringRef("name"), statsrapidjson::StringRef((*vit)->getName().c_str()), allocator);
-		value.AddMember(statsrapidjson::StringRef("value"), (*vit)->getValue(), allocator);
-
-		values.PushBack(value, allocator);
-	}
-
-	row.AddMember(statsrapidjson::StringRef("values"), values, allocator);
-
-	arrayValues.PushBack(row, allocator);
-}
-
-void CStatCategory::serialize(std::stringstream &ss)
-{
-	int cnt = 0;
-
-	for (auto vit = getValues().begin(); vit != getValues().end(); ++vit)
-	{
-		ss << "," << (*vit)->getValue();
-		cnt++;
-	}
-
-	for (; cnt < CStats::singleton().getMaxValues(); cnt++)
-		ss << ",";
-}

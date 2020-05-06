@@ -23,6 +23,7 @@
 #include <stdexcept>
 
 #include <semaphore.h>
+#include <limits.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,7 +87,7 @@ class SSemaphore
 {
 public:
     SSemaphore();
-    SSemaphore(unsigned int lInitialCount, unsigned int lMaxCount, const char *pszName = NULL, bool bInit = true);
+    SSemaphore(unsigned int lInitialCount, unsigned int lMaxCount=UINT_MAX, const char *pszName = NULL, bool bInit = true);
 
     ~SSemaphore();
 
@@ -95,6 +96,8 @@ public:
 
     bool decrement(bool wait = true);
     bool increment();
+
+    int getCurrentCount();
 
     int getInitialCount() { return mInitialCount; }
     int getMaxCount() { return mMaxCount; }
@@ -131,6 +134,98 @@ private:
 
    int m_pipefd[2];
    char m_buf[1];
+};
+
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+
+class SRdLock;
+class SWrLock;
+
+class SRwLock
+{
+   friend SRdLock;
+   friend SWrLock;
+
+public:
+   SRwLock();
+   ~SRwLock();
+
+protected:
+   enum ReadWrite
+   {
+      Read,
+      Write
+   };
+
+   bool enter( ReadWrite rw, bool wait );
+   //bool enter( ReadWrite rw, long waitms );
+   void leave();
+
+private:
+   pthread_rwlock_t m_rwlock;
+};
+
+class SRdLock
+{
+public:
+   SRdLock( SRwLock & rwlock, bool acq = true )
+      : m_rwlock( rwlock ),
+        m_locked( false )
+   {
+      if (acq)
+         acquire();
+   }
+
+   ~SRdLock()
+   {
+      if (m_locked)
+         m_rwlock.leave();
+   }
+
+   bool acquire( bool wait = true )
+   {
+      return m_locked = m_rwlock.enter( SRwLock::Read, wait );
+   }
+
+   bool isLocked() { return m_locked; }
+
+private:
+   SRdLock();
+
+   SRwLock &m_rwlock;
+   bool m_locked;
+};
+
+class SWrLock
+{
+public:
+   SWrLock( SRwLock & rwlock, bool acq = true )
+      : m_rwlock( rwlock ),
+        m_locked( false )
+   {
+      if (acq)
+         acquire();
+   }
+
+   ~SWrLock()
+   {
+      if (m_locked)
+         m_rwlock.leave();
+   }
+
+   bool acquire( bool wait = true )
+   {
+      return m_locked = m_rwlock.enter( SRwLock::Write, wait );
+   }
+
+   bool isLocked() { return m_locked; }
+
+private:
+   SWrLock();
+
+   SRwLock &m_rwlock;
+   bool m_locked;
 };
 
 //////////////////////////////////////////////////////////////////////////////////
