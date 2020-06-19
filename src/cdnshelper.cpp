@@ -177,3 +177,8 @@ int get_colocated_candlist_fqdn(char *sgwu_fqdn, void *node_obj2,
 	EPC::ColocatedCandidateList ccl(fqdn, sel2->getResults());
 	return ccl.get_result_fqdn(result);
 }
+
+void dnscache_refresh(nameserver_type_id ns_type)
+{
+	CachedDNS::Cache::getInstance(ns_type).forceRefresh();
+}

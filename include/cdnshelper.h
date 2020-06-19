@@ -88,6 +88,8 @@ int get_colocated_candlist_fqdn(char *sgwu_fqdn, void *node_obj2,
 
 void set_dns_retry_params(long timeout, unsigned int retries);
 
+void dnscache_refresh(nameserver_type_id ns_type);
+
 #ifdef __cplusplus
 }
 #endif
