@@ -103,11 +103,19 @@ def describe_oss_options(ctx):
     r = requests.get(url)
     click.echo(r.json())
 
+@click.command()
+@click.pass_context
+def dnscache_refresh(ctx):
+    url = ctx.obj['C3PO_URL'] + "/dnscache_refresh"
+    r = requests.post(url, json={})
+    click.echo(r.json())
+
 c3pocli.add_command(admin)
 c3pocli.add_command(stats)
 c3pocli.add_command(logger)
 
 admin.add_command(describe_oss_options)
+admin.add_command(dnscache_refresh)
 
 stats.add_command(describe_stats_frequency)
 stats.add_command(set_stats_frequency)
