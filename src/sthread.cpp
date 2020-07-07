@@ -302,13 +302,15 @@ void SEventThread::dispatch()
             break;
          case ETM_TIMER:
             onTimer( *((STimerMessage*)m)->getTimer() );
+            m = NULL;
             break;
          default:
             dispatch( *m );
             break;
        }
 
-       delete m;
+       if (m)
+          delete m;
      }
    }
 }
@@ -325,6 +327,7 @@ SEventThread::Timer::Timer()
    m_thread = NULL;
    m_interval = 0;
    m_oneshot = true;
+   m_event_message = NULL;
 
    m_timer = NULL;
 }
@@ -334,6 +337,7 @@ SEventThread::Timer::Timer(long milliseconds, bool oneshot)
    // assign the id
    m_id = atomic_inc_fetch(m_nextid);
    m_thread = NULL;
+   m_event_message = NULL;
    m_interval = milliseconds;
    m_oneshot = oneshot;
 
@@ -350,6 +354,7 @@ void SEventThread::Timer::init(SEventThread* pThread)
    destroy();
 
    m_thread = pThread;
+   m_event_message = new STimerMessage( this );
 
    struct sigevent sev;
    sev.sigev_notify = SIGEV_SIGNAL;
@@ -366,6 +371,12 @@ void SEventThread::Timer::destroy()
       stop();
       timer_delete(m_timer);
       m_timer = NULL;
+   }
+
+   if (m_event_message != NULL)
+   {
+      delete m_event_message;
+      m_event_message = NULL;
    }
 }
 
@@ -403,10 +414,10 @@ void SEventThread::Timer::_timerHandler(int signo, siginfo_t *pinfo, void *pcont
 {
 //std::cout << "SEventThread::Timer::_timerHandler() 1" << std::endl;
    SEventThread::Timer* pTimer = (SEventThread::Timer*)pinfo->si_value.sival_ptr;
-   if (pTimer)
+   if (pTimer && pTimer->getEventMessage())
    {
 //std::cout << "SEventThread::Timer::_timerHandler() 2" << std::endl;
-      pTimer->m_thread->postMessage( new STimerMessage( pTimer ) );
+      pTimer->m_thread->postMessage( pTimer->getEventMessage() );
    }
 }
 
