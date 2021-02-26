@@ -58,17 +58,12 @@ public:
         statsrapidjson::Value& arrayObjects,
         statsrapidjson::Document::AllocatorType& allocator);
 
-    void serializeSxa(const SPeer* peer,
+    void serializeSx(const SPeer* peer,
         statsrapidjson::Value& row,
         statsrapidjson::Value& arrayObjects,
         statsrapidjson::Document::AllocatorType& allocator);
 
-    void serializeSxb(const SPeer* peer,
-        statsrapidjson::Value& row,
-        statsrapidjson::Value& arrayObjects,
-        statsrapidjson::Document::AllocatorType& allocator);
-
-    void serializeSxaSxb(const SPeer* peer,
+    void serializeGx(const SPeer* peer,
         statsrapidjson::Value& row,
         statsrapidjson::Value& arrayObjects,
         statsrapidjson::Document::AllocatorType& allocator);

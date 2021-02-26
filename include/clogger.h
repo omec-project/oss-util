@@ -18,6 +18,11 @@
 #ifndef __CLOGGER_H
 #define __CLOGGER_H
 
+#define __file__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define LOG_FORMAT "%s:%s:%d:"
+#define LOG_VALUE __file__, __func__, __LINE__
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif

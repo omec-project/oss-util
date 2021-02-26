@@ -770,6 +770,9 @@ namespace EPC
    /////////////////////////////////////////////////////////////////////////////
    /////////////////////////////////////////////////////////////////////////////
 
+   class NodeSelector;
+   extern "C" typedef void(*AsyncNodeSelectorCallback)(NodeSelector &ns, void *data);
+
    class NodeSelector
    {
    public:
@@ -789,6 +792,7 @@ namespace EPC
       NetworkCapability &addDesiredNetworkCapability( NetworkCapability &nc ) { m_desiredNetworkCapabilities.push_back( nc ); return nc; }
 
       NodeSelectorResultList &process();
+	  void process(void *data, AsyncNodeSelectorCallback cb);
 
       void dump()
       {
@@ -809,6 +813,8 @@ namespace EPC
          m_results.get_result(result, res_count);
       }
 
+	 void setNodeSelType(uint8_t type);
+	 uint8_t getNodeSelType(void);
    protected:
       NodeSelector();
 
@@ -820,6 +826,9 @@ namespace EPC
       AppServiceEnum parseService( const std::string &service, std::list<AppProtocolEnum> &protocols ) const;
       static bool naptr_compare( CachedDNS::RRecordNAPTR*& first, CachedDNS::RRecordNAPTR*& second );
 
+      NodeSelectorResultList &process(CachedDNS::QueryPtr query, bool cacheHit);
+      static void async_callback(CachedDNS::QueryPtr q, bool cacheHit, const void *data);
+
       CachedDNS::namedserverid_t m_nsid;
       std::string m_domain;
       AppServiceEnum m_desiredService;
@@ -829,6 +838,10 @@ namespace EPC
 
       NodeSelectorResultList m_results;
       CachedDNS::QueryPtr m_query;
+
+      AsyncNodeSelectorCallback m_asynccb;
+      void *m_asyncdata;
+	  int m_node_sel_type;
    };
 
    ////////////////////////////////////////////////////////////////////////////////

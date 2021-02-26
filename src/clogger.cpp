@@ -259,11 +259,6 @@ void clInit(const char *app, uint8_t cp_logger)
 {
 	Logger::init(app, cp_logger);
 }
-
-void clStart(void)
-{
-}
-
 void clStop(void)
 {
 	Logger::flush();
