@@ -240,55 +240,6 @@ void CStatMessages::serializeGx(const SPeer* peer,
 }
 
 
-void CStatMessages::serializeGx(const SPeer* peer,
-    statsrapidjson::Value& row,
-    statsrapidjson::Value& arrayObjects,
-    statsrapidjson::Document::AllocatorType& allocator)
-{
-    for(int i = 0; i < GX_MSG_TYPE_LEN; i++) {
-        if((peer->stats.gx[i].cnt[SENT] == 0 && peer->stats.gx[i].cnt[RCVD] == 0) && suppress) {
-            continue;
-        }
-        statsrapidjson::Value value(statsrapidjson::kObjectType);
-        value.AddMember(
-            statsrapidjson::StringRef("type"), statsrapidjson::StringRef(ossGxMessageDefs[i].msgname), allocator);
-
-        switch(ossGxMessageDefs[i].dir) {
-        case dIn:
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.gx[i].cnt[RCVD], allocator);
-            break;
-
-        case dOut:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.gx[i].cnt[SENT], allocator);
-            break;
-
-        case dRespSend:
-            value.AddMember(statsrapidjson::StringRef("sent_acc"), peer->stats.gx[i].cnt[ACC], allocator);
-            value.AddMember(statsrapidjson::StringRef("sent_rej"), peer->stats.gx[i].cnt[REJ], allocator);
-            break;
-
-        case dRespRcvd:
-            value.AddMember(statsrapidjson::StringRef("rcvd_acc"), peer->stats.gx[i].cnt[ACC], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd_rej"), peer->stats.gx[i].cnt[REJ], allocator);
-            break;
-
-        case dBoth:
-            value.AddMember(statsrapidjson::StringRef("sent"), peer->stats.gx[i].cnt[ACC], allocator);
-            value.AddMember(statsrapidjson::StringRef("rcvd"), peer->stats.gx[i].cnt[REJ], allocator);
-            break;
-
-        case dNone:
-            value.AddMember(statsrapidjson::StringRef("count"), peer->stats.gx[i].cnt[BOTH], allocator);
-            break;
-        }
-
-    if((peer->stats.gx[i].ts != NULL) && (strlen(peer->stats.gx[i].ts) != 0))
-               value.AddMember(statsrapidjson::StringRef("last"), statsrapidjson::StringRef(peer->stats.gx[i].ts), allocator);
-        arrayObjects.PushBack(value, allocator);
-    }
-}
-
-
 void CStatMessages::serializeSystem(const cli_node_t *cli_node,
     statsrapidjson::Value& row,
     statsrapidjson::Value& arrayObjects,

@@ -68,11 +68,6 @@ public:
         statsrapidjson::Value& arrayObjects,
         statsrapidjson::Document::AllocatorType& allocator);
 
-    void serializeGx(const SPeer* peer,
-        statsrapidjson::Value& row,
-        statsrapidjson::Value& arrayObjects,
-        statsrapidjson::Document::AllocatorType& allocator);
-
  	void serializeSystem(const cli_node_t *cli_node,
     	statsrapidjson::Value& row,
     	statsrapidjson::Value& arrayObjects,
