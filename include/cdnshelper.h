@@ -46,6 +46,13 @@ typedef enum nameserver_type_id {
 	NS_APP = 2
 } nameserver_type_id;
 
+typedef int (*dns_query_callback) (void *ns, void *data, void *user_data);
+
+typedef struct dns_cb_userdata_t {
+	dns_query_callback cb;
+	void *data;
+} dns_cb_userdata_t;
+
 void set_dnscache_refresh_params(unsigned int concurrent, int percent,
 		long interval);
 
@@ -80,6 +87,11 @@ void set_nwcapability(void *node_obj, const char *nc);
 void process_dnsreq(void *node_obj, dns_query_result_t *result,
 		uint16_t *res_count);
 
+void process_dnsreq_async(void *node_obj, dns_cb_userdata_t *user_data);
+
+void get_dns_query_res(void *node_obj, dns_query_result_t *result,
+		uint16_t *res_count);
+
 int get_colocated_candlist(void *node_obj1,	void *node_obj2,
 		canonical_result_t *result);
 
@@ -87,6 +99,8 @@ int get_colocated_candlist_fqdn(char *sgwu_fqdn, void *node_obj2,
 		canonical_result_t *result);
 
 void set_dns_retry_params(long timeout, unsigned int retries);
+
+uint8_t get_node_selector_type(void *node_obj);
 
 #ifdef __cplusplus
 }

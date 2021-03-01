@@ -19,6 +19,16 @@
 #include "epc.h"
 #include "cdnshelper.h"
 
+extern "C" void NodeSelector_callback(EPC::NodeSelector &ns, void *user_data)
+{
+	//ns.dump();
+	dns_cb_userdata_t *cb_user_data = (dns_cb_userdata_t *) user_data;
+	dns_query_callback callback = cb_user_data->cb;
+	void *data = cb_user_data->data;
+	void *arg = &ns;
+	callback(arg, data, user_data);
+}
+
 void set_dnscache_refresh_params(unsigned int concurrent, int percent,
 		long interval)
 {
@@ -71,6 +81,8 @@ void *init_pgwupf_node_selector(const char *apnoi, const char *mnc, const char *
 
 	sel->setNamedServerID(NS_OPS);
 
+	sel->setNodeSelType(PGWUPFNODESELECTOR);
+
 	return sel;
 }
 
@@ -82,6 +94,8 @@ void *init_sgwupf_node_selector(char *lb, char *hb,
 
 	sel->setNamedServerID(NS_OPS);
 
+	sel->setNodeSelType(SGWUPFNODESELECTOR);
+
 	return sel;
 }
 
@@ -92,6 +106,8 @@ void *init_enbupf_node_selector(const char *enb, const char *mnc,
 				new EPC::ENodeBUPFNodeSelector(enb, mnc, mcc);
 
 	sel->setNamedServerID(NS_APP);
+
+	sel->setNodeSelType(ENBUPFNODESELECTOR);
 
 	return sel;
 }
@@ -158,6 +174,21 @@ void process_dnsreq(void *node_obj, dns_query_result_t *result,
 	sel->get_result(result, res_count);
 }
 
+void process_dnsreq_async(void *node_obj, dns_cb_userdata_t *user_data)
+{
+
+	EPC::NodeSelector *sel = static_cast<EPC::NodeSelector *>(node_obj);
+	sel->process((void *)user_data, NodeSelector_callback);
+}
+
+void get_dns_query_res(void *node_obj, dns_query_result_t *result,
+		uint16_t *res_count)
+{
+	EPC::NodeSelector *sel = static_cast<EPC::NodeSelector *>(node_obj);
+	//sel->dump();
+	sel->get_result(result, res_count);
+}
+
 int get_colocated_candlist(void *node_obj1, void *node_obj2,
 		canonical_result_t *result)
 {
@@ -176,4 +207,10 @@ int get_colocated_candlist_fqdn(char *sgwu_fqdn, void *node_obj2,
 	std::string fqdn(sgwu_fqdn);
 	EPC::ColocatedCandidateList ccl(fqdn, sel2->getResults());
 	return ccl.get_result_fqdn(result);
+}
+
+uint8_t get_node_selector_type(void *node_obj)
+{
+	EPC::NodeSelector *sel  = static_cast<EPC::NodeSelector *>(node_obj);
+	return sel->getNodeSelType();
 }

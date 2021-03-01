@@ -108,6 +108,8 @@ public:
    virtual ~SEventThreadMessage() { }
 };
 
+class STimerMessage;
+
 class SEventThread : public SThread
 {
 public:
@@ -134,6 +136,7 @@ public:
       void setInterval(long interval) { m_interval = interval; }
       void setOneShot(bool oneshot) { m_oneshot = oneshot; }
       long getId() { return m_id; }
+      STimerMessage* getEventMessage() { return m_event_message; }
       bool isInitialized() { return m_timer != NULL; }
 
    private:
@@ -141,6 +144,7 @@ public:
 
       long m_id;
       SEventThread* m_thread;
+      STimerMessage* m_event_message;
       bool m_oneshot;
       long m_interval;
       timer_t m_timer;

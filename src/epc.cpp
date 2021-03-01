@@ -349,7 +349,7 @@ std::string Utility::emergency_epdg_tai_fqdn( const char *lb, const char *hb, co
     .APPEND_MNC( mnc )
     .APPEND_MCC( mcc )
     .append( "pub." )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -371,7 +371,7 @@ std::string Utility::emergency_epdg_lac_fqdn( const char *lac, const char *mnc, 
     .APPEND_MNC( mnc )
     .APPEND_MCC( mcc )
     .append( "pub." )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -390,7 +390,7 @@ std::string Utility::emergency_epdg_visitedcountry_fqdn( const char *mcc )
    s.append( "sos.epdg.epc." )
     .APPEND_MCC( mcc )
     .append( "visited-country.pub." )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -411,7 +411,7 @@ std::string Utility::global_enodeb_id_fqdn( const char *enb, const char *mnc, co
     .append( ".enb.epc." )
     .APPEND_MNC( mnc )
     .APPEND_MCC( mcc )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -432,7 +432,7 @@ std::string Utility::local_homenetwork_fqdn( const char *lhn, const char *mcc )
     .append( ".lhn.epc." )
     .APPEND_MCC( mcc )
     .append( "visited-country.pub." )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -451,7 +451,7 @@ std::string Utility::epc( const char *mnc, const char *mcc )
    s.append( "epc." )
     .APPEND_MNC( mnc )
     .APPEND_MCC( mcc )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -471,7 +471,7 @@ std::string Utility::apn_fqdn( const char *apnoi, const char *mnc, const char *m
     .append( ".apn.epc." )
     .APPEND_MNC( mnc )
     .APPEND_MCC( mcc )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -486,12 +486,12 @@ std::string Utility::apn( const char *apnoi, const char *mnc, const char *mcc )
 {
    std::string s;
 
-   // '(.+)\.apn\.mnc(\d{3})\.mcc(\d{3})\.gprs$'} 
+   // '(.+)\.apn\.mnc(\d{3})\.mcc(\d{3})\.gprs$'}
    s.append( apnoi )
     .append( ".apn." )
     .APPEND_MNC( mnc )
     .APPEND_MCC( mcc )
-    .append( "gprs" ); 
+    .append( "gprs" );
 
    return s;
 }
@@ -687,7 +687,7 @@ std::string Utility::diameter_fqdn( const char *mnc, const char *mcc )
    s.append( "diameter.epc." )
     .APPEND_MNC( mnc )
     .APPEND_MCC( mcc )
-    .APPEND_3GPPNETWORK; 
+    .APPEND_3GPPNETWORK;
 
    return s;
 }
@@ -700,7 +700,7 @@ std::string Utility::diameter_fqdn( const unsigned char *plmnid )
 
 std::string Utility::getDiameterService( DiameterApplicationEnum app, DiameterProtocolEnum protocol )
 {
-   std::ostringstream buffer; 
+   std::ostringstream buffer;
    buffer << "aaa+ap" << getDiameterApplication( app ) << ":" << getDiameterProtocol( protocol );
    return buffer.str();
 }
@@ -819,7 +819,7 @@ void CanonicalNodeName::setName( const std::string &n )
    clear();
    m_topon = false;
    m_name = "";
-   
+
    // parse the name into labels
    std::string arg;
    std::istringstream ss( n );
@@ -867,7 +867,7 @@ int CanonicalNodeName::topologicalCompare( const CanonicalNodeName &right )
    int matchingLabels = 0;
    CanonicalNodeName::const_iterator itl = begin();
    CanonicalNodeName::const_iterator itr = right.begin();
-   
+
    while ( itl != end() && itr != right.end() )
    {
       if ( *itl != *itr )
@@ -883,13 +883,33 @@ int CanonicalNodeName::topologicalCompare( const CanonicalNodeName &right )
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+void NodeSelector::async_callback(CachedDNS::QueryPtr q, bool cacheHit, const void *data)
+{
+   NodeSelector *ns = (NodeSelector*)data;
+   NodeSelectorResultList &nsrl = ns->process(q, cacheHit);
+   if (ns->m_asynccb)
+      (*ns->m_asynccb)(*ns, ns->m_asyncdata);
+}
+
 NodeSelectorResultList &NodeSelector::process()
+{
+   bool cacheHit = false;
+   CachedDNS::QueryPtr query = CachedDNS::Cache::getInstance(m_nsid).query( ns_t_naptr, m_domain, cacheHit );
+   return process(query, cacheHit);
+}
+
+void NodeSelector::process(void *data, AsyncNodeSelectorCallback cb)
+{
+   m_asynccb = cb;
+   m_asyncdata = data;
+   CachedDNS::Cache::getInstance(m_nsid).query( ns_t_naptr, m_domain, async_callback, this );
+}
+
+NodeSelectorResultList &NodeSelector::process(CachedDNS::QueryPtr query, bool cacheHit)
 {
    std::list<AppProtocolEnum> supportedProtocols;
 
-   // perform dns query
-   bool cacheHit = false;
-   m_query = CachedDNS::Cache::getInstance(m_nsid).query( ns_t_naptr, m_domain, cacheHit );
+   m_query = query;
 
    // evaluate each answer to see if it matches the service/protocol requirements
    for (std::list<CachedDNS::ResourceRecord*>::const_iterator rrit = m_query->getAnswers().begin();
@@ -912,7 +932,7 @@ NodeSelectorResultList &NodeSelector::process()
          nsr->setOrder( naptr->getOrder() );
          nsr->setPreference( naptr->getPreference() );
 
-         // identify all of the desired protocols supported by the service 
+         // identify all of the desired protocols supported by the service
          for (AppProtocolList::const_iterator dpit = m_desiredProtocols.begin();
               dpit != m_desiredProtocols.end();
               ++dpit)
@@ -1024,7 +1044,7 @@ NodeSelectorResultList &NodeSelector::process()
 
    // sort the naptr list
    m_results.sort( NodeSelectorResultList::sort_compare );
-      
+
    return m_results;
 }
 
@@ -1043,6 +1063,9 @@ NodeSelector::~NodeSelector()
       delete ap;
    }
 }
+void NodeSelector::setNodeSelType(uint8_t type) { m_node_sel_type = type; }
+
+uint8_t NodeSelector::getNodeSelType(void) { return m_node_sel_type; }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -1064,7 +1087,7 @@ bool NodeSelectorResultList::sort_compare( NodeSelectorResult*& first, NodeSelec
 void AppService::parse( const std::string &rs )
 {
    m_rawService = rs;
-   
+
    std::string arg;
    std::istringstream ss( m_rawService );
 
@@ -1072,7 +1095,7 @@ void AppService::parse( const std::string &rs )
       return;
 
    m_service = Utility::getAppService( arg );
-   
+
    while ( getline( ss, arg, ':' ) )
    {
       AppProtocol *ap = new AppProtocol();
@@ -1238,7 +1261,7 @@ DiameterNaptrList &DiameterSelector::process()
          ++rrit )
    {
       CachedDNS::RRecordNAPTR* naptr = (CachedDNS::RRecordNAPTR*)*rrit;
-      
+
       // does the naptr service field match the app/protocol that we are looking for
       if ( naptr->getService() == service )
       {
@@ -1358,7 +1381,7 @@ DiameterNaptrList &DiameterSelector::process()
          m_results.push_back( n );
       }
    }
-   
+
 
    return m_results;
 }
